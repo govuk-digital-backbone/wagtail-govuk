@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% load wagtailcore_tags %}
+{% block title %}{{ self.seo_title|default:self.title }}{% endblock %}
+{% block content %}
+    <h1 class="govuk-heading-xl">{{ self.title }}</h1>
+    {% if self.search_description %}<p class="govuk-body-l">{{ self.search_description }}</p>{% endif %}
+    {% if self.body %}<div class="govuk-body rich-text-content">{{ self.body|richtext }}</div>{% endif %}
+    {% block page_content %}{% endblock %}
+{% endblock %}

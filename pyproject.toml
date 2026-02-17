@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wagtail-govuk"
+version = "0.0.1"
+description = "Wagtail GOV.UK themed site"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "Django>=6.0.2",
+  "wagtail==7.3",
+  "gunicorn==25.1.0",
+  "django-allauth[socialaccount,openid]==65.14.3",
+  "psycopg2-binary==2.9.11",
+]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["govuk*", "home*"]
