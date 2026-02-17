@@ -24,6 +24,5 @@ jobs:
 
       - name: 'Build Inventory Image'
         run: |
-          cd docker/digital.gov.uk/
           docker build . --no-cache --tag ghcr.io/govuk-digital-backbone/wagtail-govuk:7.3-001
           docker push ghcr.io/govuk-digital-backbone/wagtail-govuk:7.3-001
