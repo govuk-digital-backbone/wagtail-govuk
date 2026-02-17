@@ -1,4 +1,4 @@
-name: GHCR digital.gov.uk Deploy
+name: GHCR Deploy
 
 on:
   push:
