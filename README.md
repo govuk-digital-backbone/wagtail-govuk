@@ -45,3 +45,6 @@ When using `govuk.settings.dev`, the following variables are required:
 - `BASE_URL`: Full base URL used for CSRF, CORS, and Wagtail admin URLs (for example `https://example.com`).
 - `OIDC_CLIENT_ID`: Internal Access client ID.
 - `OIDC_CLIENT_SECRET`: Internal Access client secret.
+- `OIDC_JWKS_URL`: JWKS URL for API bearer token verification. Defaults to `https://sso.service.security.gov.uk/.well-known/jwks.json`.
+- `OIDC_ISSUER`: Expected JWT issuer for API bearer token verification. Defaults to `https://sso.service.security.gov.uk`.
+- `OIDC_TOKEN_AUDIENCE`: Expected JWT audience for API bearer token verification. Defaults to `OIDC_CLIENT_ID`.

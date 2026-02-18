@@ -87,6 +87,11 @@
                                     aria-hidden="true">Menu</button>
                             <ul class="govuk-service-navigation__list" id="navigation">
                                 {% if request.user.is_authenticated %}
+                                    {% if perms.wagtailadmin.access_admin %}
+                                        <li class="govuk-service-navigation__item">
+                                            <a class="govuk-service-navigation__link" href="/admin/">Admin</a>
+                                        </li>
+                                    {% endif %}
                                     <li class="govuk-service-navigation__item">
                                         <a class="govuk-service-navigation__link"
                                            href="{% url 'account_profile' %}">Profile</a>
@@ -116,7 +121,6 @@
                     </span>
                 </p>
             </div>
-            <a href="#" class="govuk-back-link">Back</a>
             {% if messages %}
                 {% for message in messages %}
                     <div class="govuk-notification-banner govuk-notification-banner--success"

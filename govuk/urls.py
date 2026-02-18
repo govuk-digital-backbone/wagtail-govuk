@@ -8,8 +8,10 @@ from wagtail.documents import urls as wagtaildocs_urls
 
 from allauth.account.decorators import secure_admin_login
 from allauth.account.views import LogoutView
+from govuk.api import api_root_view, api_router, api_v2_root_view
 from govuk.views import (
     assets_alias_view,
+    oidc_callback,
     oidc_login_redirect,
     profile_view,
     wagtail_logout_redirect,
@@ -21,10 +23,19 @@ admin.site.login = secure_admin_login(admin.site.login)
 urlpatterns = [
     path("login/", oidc_login_redirect, name="account_login"),
     path("accounts/login/", oidc_login_redirect),
+    path(
+        f"accounts/{settings.SOCIALACCOUNT_OPENID_CONNECT_URL_PREFIX}/<str:provider_id>/login/callback/",
+        oidc_callback,
+        name="oidc_callback",
+    ),
+    path("_util/login/", oidc_login_redirect, name="wagtailcore_login"),
     path("admin/logout/", wagtail_logout_redirect, name="wagtailadmin_logout"),
     path("django-admin/", admin.site.urls),
     path("admin/", include(wagtailadmin_urls)),
     path("documents/", include(wagtaildocs_urls)),
+    path("api/", api_root_view, name="api_root"),
+    path("api/v2/", api_v2_root_view, name="api_v2_root"),
+    path("api/v2/", api_router.urls),
     path("assets/<path:path>", assets_alias_view, name="assets_alias"),
     path("accounts/profile/", profile_view, name="account_profile"),
     path("accounts/logout/", LogoutView.as_view(), name="account_logout"),

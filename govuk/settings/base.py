@@ -134,10 +134,12 @@ INSTALLED_APPS = [
     "wagtail.images",
     "wagtail.search",
     "wagtail.admin",
+    "wagtail.api.v2",
     "wagtail",
     "modelcluster",
     "taggit",
     "django_filters",
+    "rest_framework",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -167,6 +169,13 @@ ACCOUNT_EMAIL_VERIFICATION = "none"
 SOCIALACCOUNT_ONLY = True
 ACCOUNT_ADAPTER = "govuk.adapters.AccountAdapter"
 OIDC_PROVIDER_ID = os.getenv("OIDC_PROVIDER_ID", "internal-access")
+OIDC_ISSUER = os.getenv("OIDC_ISSUER", "https://sso.service.security.gov.uk")
+OIDC_JWKS_URL = os.getenv(
+    "OIDC_JWKS_URL", "https://sso.service.security.gov.uk/.well-known/jwks.json"
+)
+OIDC_TOKEN_AUDIENCE = os.getenv(
+    "OIDC_TOKEN_AUDIENCE", os.getenv("OIDC_CLIENT_ID", None)
+)
 SOCIALACCOUNT_OPENID_CONNECT_URL_PREFIX = "oidc"
 SOCIALACCOUNT_LOGIN_ON_GET = True
 SOCIALACCOUNT_PROVIDERS = {
@@ -208,6 +217,27 @@ AUTHENTICATION_BACKENDS = [
     # `allauth` specific authentication methods, such as login by email
     "allauth.account.auth_backends.AuthenticationBackend",
 ]
+
+SIMPLE_JWT = {
+    "ALGORITHM": "RS256",
+    "JWK_URL": OIDC_JWKS_URL,
+    "ISSUER": OIDC_ISSUER,
+    "AUDIENCE": OIDC_TOKEN_AUDIENCE,
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    # OIDC ID tokens typically use "sub" as the subject identifier.
+    "USER_ID_CLAIM": "sub",
+    # OIDC ID tokens usually omit "jti", so do not require it.
+    "JTI_CLAIM": None,
+    # OIDC ID tokens do not include SimpleJWT's "token_type" claim.
+    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.UntypedToken",),
+}
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "govuk.authentication.InternalAccessJWTAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
+}
 
 LOGIN_REDIRECT_URL = "/accounts/profile/"
 LOGIN_URL = "/login/"
@@ -305,6 +335,7 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 10_000
 # Wagtail settings
 
 WAGTAIL_SITE_NAME = "govuk"
+WAGTAIL_FRONTEND_LOGIN_URL = "/login/"
 
 # Search
 # https://docs.wagtail.org/en/stable/topics/search/backends.html
