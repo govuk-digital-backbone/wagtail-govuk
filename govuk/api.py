@@ -1,3 +1,6 @@
+from urllib.parse import urljoin
+
+from django.conf import settings
 from django.http import JsonResponse
 from django.urls import reverse
 from rest_framework import serializers
@@ -80,7 +83,7 @@ def _build_v2_endpoint_links(request):
     links = {}
     for endpoint_name in api_router._endpoints:
         listing_path = reverse(f"{api_router.url_namespace}:{endpoint_name}:listing")
-        listing_url = request.build_absolute_uri(listing_path)
+        listing_url = _build_api_absolute_url(request, listing_path)
         links[endpoint_name] = {
             "listing": listing_url,
             "detail": f"{listing_url}{{id}}/",
@@ -88,11 +91,18 @@ def _build_v2_endpoint_links(request):
     return links
 
 
+def _build_api_absolute_url(request, path):
+    base_url = getattr(settings, "WAGTAILADMIN_BASE_URL", "")
+    if base_url:
+        return urljoin(f"{base_url.rstrip('/')}/", path.lstrip("/"))
+    return request.build_absolute_uri(path)
+
+
 def api_root_view(request):
     return JsonResponse(
         {
             "versions": {
-                "v2": request.build_absolute_uri(reverse("api_v2_root")),
+                "v2": _build_api_absolute_url(request, reverse("api_v2_root")),
             }
         }
     )
