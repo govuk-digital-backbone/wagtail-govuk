@@ -2,14 +2,6 @@
 {% load wagtailcore_tags %}
 {% block title %}{{ self.seo_title|default:self.title }}{% endblock %}
 {% block content %}
-    <h1 class="govuk-heading-xl">{{ self.title }}</h1>
-    {% if self.search_description %}<p class="govuk-body-l">{{ self.search_description }}</p>{% endif %}
     {% if self.body %}<div class="govuk-body rich-text-content">{{ self.body|richtext }}</div>{% endif %}
     {% block page_content %}{% endblock %}
-    {% if request.user.is_authenticated and perms.wagtailadmin.access_admin %}
-        <hr class="govuk-section-break govuk-section-break--l govuk-section-break--visible">
-        <p class="govuk-body">
-            <a class="govuk-link" href="/admin/pages/{{ self.id }}/edit/">Edit this page</a>
-        </p>
-    {% endif %}
 {% endblock %}
