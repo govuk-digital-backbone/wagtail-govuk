@@ -2,6 +2,8 @@
 {% load wagtailcore_tags %}
 {% block title %}{{ self.seo_title|default:self.title }}{% endblock %}
 {% block content %}
-    {% if self.body %}<div class="govuk-body rich-text-content">{{ self.body|richtext }}</div>{% endif %}
-    {% block page_content %}{% endblock %}
+    <div class="govuk-width-container govuk-!-margin-bottom-6">
+        {% if self.body %}<div class="govuk-body rich-text-content">{{ self.body|richtext }}</div>{% endif %}
+        {% block page_content %}{% endblock %}
+    </div>
 {% endblock %}

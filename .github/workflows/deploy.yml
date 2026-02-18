@@ -24,5 +24,5 @@ jobs:
 
       - name: 'Build Inventory Image'
         run: |
-          docker build . --no-cache --tag ghcr.io/govuk-digital-backbone/wagtail-govuk:7.3-008
-          docker push ghcr.io/govuk-digital-backbone/wagtail-govuk:7.3-008
+          docker build . --no-cache --tag ghcr.io/govuk-digital-backbone/wagtail-govuk:7.3-009
+          docker push ghcr.io/govuk-digital-backbone/wagtail-govuk:7.3-009

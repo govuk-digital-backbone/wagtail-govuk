@@ -4,43 +4,47 @@
 {% block content %}
     {% for row in self.rows %}
         {% if row.block_type == "row" %}
-            <div class="govuk-grid-row govuk-!-margin-bottom-5">
-                <div class="govuk-grid-column-full">
-                    {% if row.value.heading %}<h2 class="govuk-heading-m">{{ row.value.heading }}</h2>{% endif %}
-                    <div class="govuk-grid-row">
-                        {% with card_count=row.value.cards|length %}
-                            {% for card in row.value.cards %}
-                                <div class="{% if card_count == 1 %}govuk-grid-column-full{% elif card_count == 2 %}govuk-grid-column-one-half{% else %}govuk-grid-column-one-third{% endif %}">
-                                    <div class="section-card govuk-!-margin-bottom-4">
-                                        <h3 class="govuk-heading-s">
-                                            {% if card.link_url %}
-                                                <a class="govuk-link govuk-link--no-underline govuk-link--no-visited-state"
-                                                   href="{{ card.link_url }}">{{ card.title }}</a>
-                                            {% else %}
-                                                {{ card.title }}
+            <div class="section-cards-container">
+                <div class="govuk-width-container">
+                    <div class="govuk-grid-row govuk-!-margin-bottom-5">
+                        <div class="govuk-grid-column-full">
+                            {% if row.value.heading %}<h2 class="govuk-heading-m">{{ row.value.heading }}</h2>{% endif %}
+                            <div class="section-cards">
+                                {% with card_count=row.value.cards|length %}
+                                    {% for card in row.value.cards %}
+                                        <div class="section-card">
+                                            <h3 class="govuk-heading-s">
+                                                {% if card.link_url %}
+                                                    <a class="govuk-link govuk-link--no-underline govuk-link--no-visited-state"
+                                                       href="{{ card.link_url }}">{{ card.title }}</a>
+                                                {% else %}
+                                                    {{ card.title }}
+                                                {% endif %}
+                                            </h3>
+                                            {% if card.text %}<div class="govuk-body section-card__text">{{ card.text|richtext }}</div>{% endif %}
+                                            {% if card.link_text and card.link_url %}
+                                                <a href="{{ card.link_url }}"
+                                                   role="button"
+                                                   draggable="false"
+                                                   class="govuk-button govuk-!-margin-bottom-2"
+                                                   data-module="govuk-button">{{ card.link_text }}</a>
                                             {% endif %}
-                                        </h3>
-                                        {% if card.text %}<div class="govuk-body section-card__text">{{ card.text|richtext }}</div>{% endif %}
-                                        {% if card.link_text and card.link_url %}
-                                            <a href="{{ card.link_url }}"
-                                               role="button"
-                                               draggable="false"
-                                               class="govuk-button govuk-!-margin-bottom-2"
-                                               data-module="govuk-button">{{ card.link_text }}</a>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            {% endfor %}
-                        {% endwith %}
+                                        </div>
+                                    {% endfor %}
+                                {% endwith %}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         {% endif %}
     {% endfor %}
     {% if self.free_text %}
-        <div class="govuk-grid-row">
-            <div class="govuk-grid-column-full">
-                <div class="govuk-body rich-text-content">{{ self.free_text|richtext }}</div>
+        <div class="govuk-width-container govuk-!-margin-top-3 govuk-!-margin-bottom-6">
+            <div class="govuk-grid-row">
+                <div class="govuk-grid-column-full">
+                    <div class="govuk-body rich-text-content">{{ self.free_text|richtext }}</div>
+                </div>
             </div>
         </div>
     {% endif %}

@@ -171,12 +171,16 @@ ACCOUNT_EMAIL_VERIFICATION = "none"
 SOCIALACCOUNT_ONLY = True
 ACCOUNT_ADAPTER = "govuk.adapters.AccountAdapter"
 OIDC_PROVIDER_ID = os.getenv("OIDC_PROVIDER_ID", "internal-access")
+OIDC_CLIENT_ID = os.getenv("OIDC_CLIENT_ID")
 OIDC_ISSUER = os.getenv("OIDC_ISSUER", "https://sso.service.security.gov.uk")
 OIDC_JWKS_URL = os.getenv(
     "OIDC_JWKS_URL", "https://sso.service.security.gov.uk/.well-known/jwks.json"
 )
+OIDC_END_SESSION_URL = os.getenv(
+    "OIDC_END_SESSION_URL", "https://sso.service.security.gov.uk/sign-out"
+)
 OIDC_TOKEN_AUDIENCE = os.getenv(
-    "OIDC_TOKEN_AUDIENCE", os.getenv("OIDC_CLIENT_ID", None)
+    "OIDC_TOKEN_AUDIENCE", OIDC_CLIENT_ID
 )
 SOCIALACCOUNT_OPENID_CONNECT_URL_PREFIX = "oidc"
 SOCIALACCOUNT_LOGIN_ON_GET = True
@@ -190,7 +194,7 @@ SOCIALACCOUNT_PROVIDERS = {
             {
                 "provider_id": "internal-access",
                 "name": "Internal Access",
-                "client_id": os.getenv("OIDC_CLIENT_ID"),
+                "client_id": OIDC_CLIENT_ID,
                 "secret": os.getenv("OIDC_CLIENT_SECRET"),
                 "settings": {
                     # When enabled, an additional call to the userinfo

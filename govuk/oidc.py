@@ -23,6 +23,16 @@ def build_oidc_login_url(next_url: str | None = None) -> str:
     return base_url
 
 
+def build_oidc_logout_url() -> str:
+    end_session_url = getattr(
+        settings, "OIDC_END_SESSION_URL", "https://sso.service.security.gov.uk/sign-out"
+    )
+    client_id = getattr(settings, "OIDC_CLIENT_ID", None)
+    if client_id:
+        return f"{end_session_url}?{urlencode({'client_id': client_id})}"
+    return end_session_url
+
+
 class SessionOIDCCallbackAdapter(OpenIDConnectOAuth2Adapter):
     """Stores the raw OIDC ID token in session for the signed-in user."""
 

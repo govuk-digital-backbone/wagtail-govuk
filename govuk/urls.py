@@ -7,9 +7,9 @@ from wagtail import urls as wagtail_urls
 from wagtail.documents import urls as wagtaildocs_urls
 
 from allauth.account.decorators import secure_admin_login
-from allauth.account.views import LogoutView
 from govuk.api import api_root_view, api_router, api_v2_root_view
 from govuk.views import (
+    account_logout_redirect,
     assets_alias_view,
     oidc_callback,
     oidc_login_redirect,
@@ -38,7 +38,7 @@ urlpatterns = [
     path("api/v2/", api_router.urls),
     path("assets/<path:path>", assets_alias_view, name="assets_alias"),
     path("accounts/profile/", profile_view, name="account_profile"),
-    path("accounts/logout/", LogoutView.as_view(), name="account_logout"),
+    path("accounts/logout/", account_logout_redirect, name="account_logout"),
     path("accounts/", include("allauth.urls")),
     # path("search/", search_views.search, name="search"),
 ]

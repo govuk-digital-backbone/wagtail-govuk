@@ -1,8 +1,12 @@
+.govuk-main-wrapper {
+    display: block;
+    padding: 0px;
+}
+
 .masthead {
     padding-top: 20px;
     padding-bottom: 20px;
     margin-top: 10px;
-    margin-bottom: 20px;
     background-color: #b5cd1e;
 }
 
@@ -18,12 +22,15 @@
     color: #fff;
 }
 
+.govuk-width-container, .hero {
+    max-width: 1200px;
+    margin-right: 15px;
+    margin-left: 15px;
+}
+
 .hero {
     margin-bottom: 0px;
     padding: 0px 0px 10px;
-    max-width: 960px;
-    margin-right: 15px;
-    margin-left: 15px;
     font-family: "GDS Transport", arial, sans-serif;
     -webkit-font-smoothing: antialiased;
 }
@@ -42,21 +49,33 @@
     line-height: 1.1904761905;
 }
 
-@media (min-width: 1020px) {
+@media (min-width: 1280px) {
     .hero {
         margin-right: auto !important;
         margin-left: auto !important;
     }
+    .govuk-width-container {
+        margin-right: auto !important;
+        margin-left: auto !important;
+    }
+    @supports (margin:max(calc(0px))) {
+        .govuk-width-container {
+            margin-right: auto !important;
+            margin-left: auto !important;
+        }
+    }
 }
 
 @media (min-width: 40.0625em) {
+    .hero__content {
+        width: 66.6%;
+    }
     .masthead {
         padding-top: 30px;
         padding-bottom: 30px;
         margin-top: 14px;
-        margin-bottom: 40px;
     }
-    .hero {
+    .govuk-width-container, .hero {
         margin-right: 30px;
         margin-left: 30px;
     }
@@ -66,19 +85,24 @@
     }
 }
 
-.govuk-main-wrapper {
-    display: block;
-    padding-top: 0px;
+.section-cards-container {
+    padding: 30px 0;
+    background-color: #f8f7f4;
+}
+
+.section-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(285px, 1fr));
+  gap: 26px;
 }
 
 .section-card {
-    border: 1px solid #b1b4b6;
-    padding: 20px;
-    height: 100%;
-}
-
-.section-card__text p:last-child {
-    margin-bottom: 0;
+  box-sizing: border-box;
+  display: flex;          /* optional */
+  flex-direction: column; /* optional */
+  background: white;
+  padding: 17px;
+  border: 3px solid rgb(243, 242, 241);
 }
 
 @media (min-width: 40.0625em) {

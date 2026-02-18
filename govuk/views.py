@@ -3,12 +3,14 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import redirect
 from django.contrib.staticfiles.views import serve as staticfiles_serve
 from django.shortcuts import render
+from django.views.decorators.http import require_http_methods
 from django.views.decorators.http import require_POST
 
 from govuk.oidc import (
     ADMIN_OIDC_NEXT_URL_KEY,
     OIDC_ID_TOKEN_SESSION_KEY,
     build_oidc_login_url,
+    build_oidc_logout_url,
     oidc_callback as allauth_oidc_callback,
 )
 
@@ -32,6 +34,12 @@ def oidc_login_redirect(request):
 
 def oidc_callback(request, provider_id):
     return allauth_oidc_callback(request, provider_id)
+
+
+@require_http_methods(["GET", "POST"])
+def account_logout_redirect(request):
+    django_logout(request)
+    return redirect(build_oidc_logout_url())
 
 
 @require_POST
