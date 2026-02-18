@@ -1,0 +1,54 @@
+from django.http import Http404
+from wagtail.models import Page, Site
+
+
+def navigation_and_breadcrumbs(request):
+    site = Site.find_for_request(request)
+    if site is None:
+        return {"service_navigation_items": [], "breadcrumbs": []}
+
+    site_root = site.root_page.specific
+
+    try:
+        current_page = Page.find_for_request(request, request.path_info)
+    except Http404:
+        current_page = None
+
+    service_navigation_items = []
+    menu_pages = (
+        site_root.get_children().live().public().in_menu().specific().order_by("path")
+    )
+    for menu_page in menu_pages:
+        service_navigation_items.append(
+            {
+                "title": menu_page.title,
+                "url": menu_page.get_url(request),
+                "is_active": bool(
+                    current_page and current_page.path.startswith(menu_page.path)
+                ),
+            }
+        )
+
+    breadcrumbs = []
+    if (
+        current_page
+        and current_page.pk != site_root.pk
+        and current_page.path.startswith(site_root.path)
+    ):
+        for ancestor in current_page.get_ancestors(inclusive=True).specific():
+            if not ancestor.path.startswith(site_root.path):
+                continue
+
+            is_current = ancestor.pk == current_page.pk
+            breadcrumbs.append(
+                {
+                    "title": ancestor.title,
+                    "url": None if is_current else ancestor.get_url(request),
+                    "is_current": is_current,
+                }
+            )
+
+    return {
+        "service_navigation_items": service_navigation_items,
+        "breadcrumbs": breadcrumbs,
+    }
