@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
@@ -12,7 +12,7 @@ from django.db.models.functions import Cast
 from django.utils.html import strip_tags
 from wagtail.models import Page, Site
 
-from home.models import ContentPage, SectionPage
+from home.models import ContentPage, ExternalContentItem, SectionPage
 
 DEFAULT_PAGE_SIZE = 10
 SEARCH_CONFIG = "english"
@@ -25,6 +25,9 @@ class SearchResultItem:
     search_description: str
     url: str
     score: float = 0.0
+    breadcrumbs: list[dict[str, str]] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
+    source_name: str = ""
 
 
 class SearchBackend:
@@ -42,8 +45,16 @@ class SearchBackend:
         hero_results = self._build_hero_results(clean_query, filters)
         card_results = self._build_card_results(clean_query, filters)
         tag_results = self._build_tag_results(clean_query, filters)
+        external_content_results = self._build_external_content_results(
+            clean_query,
+            filters,
+        )
         combined_results = self._merge_results(
-            page_results + hero_results + card_results + tag_results
+            page_results
+            + hero_results
+            + card_results
+            + tag_results
+            + external_content_results
         )
 
         paginator = Paginator(combined_results, self._page_size(filters))
@@ -59,12 +70,14 @@ class SearchBackend:
             queryset = self._search_pages_sqlite(queryset, query)
 
         request = filters.get("request")
+        site_root = self._site_root_page(filters)
         results: list[SearchResultItem] = []
         for page in queryset:
             specific_page = page.specific
             title = page.title
             description = page.search_description or ""
-            tags_text = self._page_tags_text(specific_page)
+            tag_labels = self._page_tag_labels(specific_page)
+            tags_text = self._clean_text(" ".join(tag_labels))
             page_rank = float(getattr(page, "rank", 0.0) or 0.0)
             score = page_rank + self._text_relevance(
                 query,
@@ -83,6 +96,13 @@ class SearchBackend:
                     search_description=description,
                     url=self._page_url(page, request),
                     score=score,
+                    breadcrumbs=self._page_breadcrumbs(
+                        page,
+                        request=request,
+                        site_root=site_root,
+                        include_page=False,
+                    ),
+                    tags=tag_labels,
                 )
             )
         return results
@@ -97,6 +117,7 @@ class SearchBackend:
             section_pages = self._search_sections_sqlite(section_pages, query)
 
         request = filters.get("request")
+        site_root = self._site_root_page(filters)
         query_lower = query.lower()
         results: list[SearchResultItem] = []
 
@@ -109,7 +130,19 @@ class SearchBackend:
                 text = self._clean_text(card.get("text"))
                 link_text = self._clean_text(card.get("link_text"))
                 link_url = (card.get("link_url") or "").strip()
-                tags_text = self._clean_text(" ".join(card.get("tags", [])))
+                card_tag_text: list[str] = []
+                card_tag_labels: list[str] = []
+                for tag in card.get("tags", []):
+                    tag_text = self._tag_text(tag)
+                    if tag_text:
+                        card_tag_text.append(tag_text)
+                    tag_label = self._tag_label(tag)
+                    if tag_label:
+                        card_tag_labels.append(tag_label)
+                tags_text = self._clean_text(" ".join(card_tag_text))
+                result_tags = self._unique_values(
+                    card_tag_labels + self._page_tag_labels(section_page)
+                )
 
                 searchable_text = " ".join(
                     value
@@ -139,6 +172,13 @@ class SearchBackend:
                         ),
                         url=link_url or section_url,
                         score=score,
+                        breadcrumbs=self._page_breadcrumbs(
+                            section_page,
+                            request=request,
+                            site_root=site_root,
+                            include_page=True,
+                        ),
+                        tags=result_tags,
                     )
                 )
 
@@ -148,6 +188,7 @@ class SearchBackend:
         self, query: str, filters: dict[str, Any]
     ) -> list[SearchResultItem]:
         request = filters.get("request")
+        site_root = self._site_root_page(filters)
         results: list[SearchResultItem] = []
 
         for model in (ContentPage, SectionPage):
@@ -161,7 +202,8 @@ class SearchBackend:
             )
 
             for page in queryset:
-                tags_text = self._page_tags_text(page)
+                tag_labels = self._page_tag_labels(page)
+                tags_text = self._clean_text(" ".join(tag_labels))
                 score = self._text_relevance(query, ((tags_text, 3.0),))
                 if score <= 0:
                     continue
@@ -173,6 +215,13 @@ class SearchBackend:
                         search_description=description,
                         url=self._page_url(page, request),
                         score=score,
+                        breadcrumbs=self._page_breadcrumbs(
+                            page,
+                            request=request,
+                            site_root=site_root,
+                            include_page=False,
+                        ),
+                        tags=tag_labels,
                     )
                 )
 
@@ -182,6 +231,7 @@ class SearchBackend:
         self, query: str, filters: dict[str, Any]
     ) -> list[SearchResultItem]:
         request = filters.get("request")
+        site_root = self._site_root_page(filters)
         results: list[SearchResultItem] = []
 
         for model in (ContentPage, SectionPage):
@@ -194,6 +244,7 @@ class SearchBackend:
             for page in queryset:
                 hero_title = self._clean_text(getattr(page, "hero_title", ""))
                 hero_intro = self._clean_text(getattr(page, "hero_intro", ""))
+                tag_labels = self._page_tag_labels(page)
                 score = float(
                     getattr(page, "hero_rank", None)
                     or self._text_relevance(
@@ -210,8 +261,62 @@ class SearchBackend:
                         search_description=hero_intro or page.search_description or "",
                         url=self._page_url(page, request),
                         score=score,
+                        breadcrumbs=self._page_breadcrumbs(
+                            page,
+                            request=request,
+                            site_root=site_root,
+                            include_page=False,
+                        ),
+                        tags=tag_labels,
                     )
                 )
+
+        return results
+
+    def _build_external_content_results(
+        self, query: str, filters: dict[str, Any]
+    ) -> list[SearchResultItem]:
+        queryset = self._external_content_queryset(filters)
+        if self._is_postgres(queryset.db):
+            queryset = self._search_external_content_postgres(queryset, query)
+        else:
+            queryset = self._search_external_content_sqlite(queryset, query)
+
+        results: list[SearchResultItem] = []
+        for item in queryset:
+            tag_labels = self._page_tag_labels(item)
+            tags_text = self._clean_text(" ".join(tag_labels))
+            source_name = self._clean_text(getattr(item.source, "name", ""))
+            item_rank = float(getattr(item, "external_rank", 0.0) or 0.0)
+            score = item_rank + self._text_relevance(
+                query,
+                (
+                    (item.title, 3.0),
+                    (item.summary, 2.0),
+                    (item.url, 1.0),
+                    (source_name, 1.5),
+                    (tags_text, 2.5),
+                ),
+            )
+            if score <= 0:
+                continue
+
+            description = self._clean_text(item.summary)
+            if not description and source_name:
+                description = f"Source: {source_name}"
+            if not description:
+                description = self._tag_result_description(item)
+
+            results.append(
+                SearchResultItem(
+                    title=item.title or item.url,
+                    search_description=description,
+                    url=item.url,
+                    score=score,
+                    tags=tag_labels,
+                    source_name=source_name,
+                )
+            )
 
         return results
 
@@ -276,6 +381,43 @@ class SearchBackend:
             .order_by("-hero_rank", "-first_published_at", "title")
         )
 
+    def _search_external_content_sqlite(self, queryset: QuerySet, query: str) -> QuerySet:
+        return (
+            queryset.filter(
+                Q(title__icontains=query)
+                | Q(summary__icontains=query)
+                | Q(url__icontains=query)
+                | Q(source__name__icontains=query)
+                | Q(tags__slug__icontains=query)
+                | Q(tags__name__icontains=query)
+            )
+            .distinct()
+            .order_by("-updated_at", "-created_at", "-published_at", "-last_seen_at", "title")
+        )
+
+    def _search_external_content_postgres(self, queryset: QuerySet, query: str) -> QuerySet:
+        search_vector = (
+            SearchVector("title", weight="A", config=SEARCH_CONFIG)
+            + SearchVector("summary", weight="B", config=SEARCH_CONFIG)
+            + SearchVector("url", weight="C", config=SEARCH_CONFIG)
+            + SearchVector("source__name", weight="B", config=SEARCH_CONFIG)
+            + SearchVector("tags__slug", weight="A", config=SEARCH_CONFIG)
+            + SearchVector("tags__name", weight="A", config=SEARCH_CONFIG)
+        )
+        search_query = SearchQuery(query, search_type="websearch", config=SEARCH_CONFIG)
+        return (
+            queryset.annotate(
+                external_rank=SearchRank(
+                    search_vector, search_query, weights=SEARCH_WEIGHTS
+                ),
+            )
+            .filter(external_rank__gt=0)
+            .order_by(
+                "-external_rank", "-updated_at", "-created_at", "-published_at", "-last_seen_at", "title"
+            )
+            .distinct()
+        )
+
     def _apply_filters(self, queryset: QuerySet, filters: dict[str, Any]) -> QuerySet:
         if filters.get("live", True):
             queryset = queryset.live()
@@ -297,6 +439,17 @@ class SearchBackend:
 
         return queryset
 
+    def _external_content_queryset(self, filters: dict[str, Any]) -> QuerySet:
+        queryset = ExternalContentItem.objects.filter(hidden=False).select_related(
+            "source", "source__settings__site"
+        )
+        site = filters.get("site")
+        if isinstance(site, Site):
+            queryset = queryset.filter(
+                Q(source__settings__site=site) | Q(source__isnull=True)
+            )
+        return queryset.prefetch_related("tags")
+
     def _is_postgres(self, db_alias: str) -> bool:
         return connections[db_alias].vendor == "postgresql"
 
@@ -306,22 +459,48 @@ class SearchBackend:
             if block.block_type != "row":
                 continue
             for card in block.value.get("cards", []):
-                card_tags: list[str] = []
-                for tag in card.get("tags", []):
-                    tag_text = self._tag_text(tag)
-                    if tag_text:
-                        card_tags.append(tag_text)
-
                 cards.append(
                     {
                         "title": card.get("title"),
                         "text": card.get("text"),
                         "link_text": card.get("link_text"),
                         "link_url": card.get("link_url"),
-                        "tags": card_tags,
+                        "tags": card.get("tags", []),
                     }
                 )
         return cards
+
+    def _site_root_page(self, filters: dict[str, Any]) -> Page | None:
+        site_or_root = filters.get("site")
+        if isinstance(site_or_root, Site):
+            return site_or_root.root_page
+        if isinstance(site_or_root, Page):
+            return site_or_root
+        return None
+
+    def _page_breadcrumbs(
+        self,
+        page: Page,
+        *,
+        request,
+        site_root: Page | None = None,
+        include_page: bool = False,
+    ) -> list[dict[str, str]]:
+        breadcrumbs: list[dict[str, str]] = []
+        for ancestor in page.get_ancestors(inclusive=include_page).specific():
+            if site_root and not ancestor.path.startswith(site_root.path):
+                continue
+            if not include_page and ancestor.pk == page.pk:
+                continue
+
+            url = ancestor.get_url(request=request) or ancestor.url or "#"
+            breadcrumbs.append(
+                {
+                    "title": ancestor.title,
+                    "url": url,
+                }
+            )
+        return breadcrumbs
 
     def _page_url(self, page: Page, request) -> str:
         url = page.get_url(request=request)
@@ -345,17 +524,45 @@ class SearchBackend:
 
         return self._clean_text(tag)
 
-    def _page_tags_text(self, page: Any) -> str:
-        tags_manager = getattr(page, "tags", None)
-        if not tags_manager:
+    def _tag_label(self, tag: Any) -> str:
+        if not tag:
             return ""
 
-        tags: list[str] = []
+        value = self._clean_text(getattr(tag, "name", "") or getattr(tag, "value", ""))
+        if value:
+            return value
+
+        key = self._clean_text(getattr(tag, "slug", "") or getattr(tag, "key", ""))
+        if key:
+            return key
+
+        return self._clean_text(tag)
+
+    def _unique_values(self, values: list[str]) -> list[str]:
+        unique_values: list[str] = []
+        seen: set[str] = set()
+        for value in values:
+            clean_value = self._clean_text(value)
+            if not clean_value:
+                continue
+            normalized = clean_value.lower()
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            unique_values.append(clean_value)
+        return unique_values
+
+    def _page_tag_labels(self, page: Any) -> list[str]:
+        tags_manager = getattr(page, "tags", None)
+        if not tags_manager:
+            return []
+
+        labels: list[str] = []
         for tag in tags_manager.all():
-            tag_text = self._tag_text(tag)
-            if tag_text:
-                tags.append(tag_text)
-        return " ".join(tags)
+            label = self._tag_label(tag)
+            if label:
+                labels.append(label)
+        return self._unique_values(labels)
 
     def _tag_result_description(self, page: Any) -> str:
         tags_manager = getattr(page, "tags", None)

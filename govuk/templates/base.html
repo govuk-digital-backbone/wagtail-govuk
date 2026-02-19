@@ -242,9 +242,11 @@
                                         <li class="govuk-footer__inline-list-item">
                                             <a class="govuk-footer__link" href="/admin/">Admin</a>
                                         </li>
-                                        <li class="govuk-footer__inline-list-item">
-                                            <a class="govuk-footer__link" href="/admin/pages/{{ self.id }}/edit/">Edit this page</a>
-                                        </li>
+                                        {% if self.id %}
+                                            <li class="govuk-footer__inline-list-item">
+                                                <a class="govuk-footer__link" href="/admin/pages/{{ self.id }}/edit/">Edit this page</a>
+                                            </li>
+                                        {% endif %}
                                     {% endif %}
                                     <li class="govuk-footer__inline-list-item">
                                         <a class="govuk-footer__link" href="{% url 'account_profile' %}">Profile</a>

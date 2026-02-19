@@ -3,9 +3,10 @@
 {% wagtail_site as current_site %}
 {% block title %}Search{% endblock %}
 {% block content %}
-    <div class="govuk-width-container govuk-!-padding-top-6 govuk-!-padding-bottom-6">
-        <h1 class="govuk-heading-l">Search result{{ results.paginator.count|pluralize }}</h1>
-        <!--form action="{% url 'search' %}"
+    <div class="section-cards-container">
+        <div class="govuk-width-container govuk-!-padding-top-6 govuk-!-padding-bottom-6">
+            <h1 class="govuk-heading-l">Search result{{ results.paginator.count|pluralize }}</h1>
+            <!--form action="{% url 'search' %}"
               method="get"
               role="search"
               class="govuk-!-margin-bottom-6">
@@ -21,40 +22,57 @@
                 <input class="govuk-input govuk-!-width-two-thirds" id="search-query" name="query" type="search" value="query" />
             </div>
             <button class="govuk-button" data-module="govuk-button" type="submit">Search</button>
-        </form -->
-        {% if query %}
-            <p class="govuk-body">{{ results.paginator.count }} result{{ results.paginator.count|pluralize }}</p>
-            {% if results %}
-                <ol class="govuk-list govuk-list--spaced">
-                    {% for result in results %}
-                        <li>
-                            <h2 class="govuk-heading-m govuk-!-margin-bottom-1">
-                                <a class="govuk-link" href="{{ result.url }}">{{ result.title }}</a>
-                            </h2>
-                            {% if result.search_description %}
-                                <p class="govuk-body govuk-!-margin-bottom-0">{{ result.search_description }}</p>
+            </form -->
+            {% if query %}
+                <p class="govuk-body">{{ results.paginator.count }} result{{ results.paginator.count|pluralize }}</p>
+                {% if results %}
+                    <div class="section-cards">
+                        {% for result in results %}
+                            <article class="section-card">
+                                {% if False and result.breadcrumbs %}
+                                    <!--p class="govuk-body-s govuk-!-margin-bottom-1 search-result-breadcrumbs">
+                                        {% for breadcrumb in result.breadcrumbs %}
+                                            <a class="govuk-link govuk-link--no-visited-state" href="{{ breadcrumb.url }}">{{ breadcrumb.title }}</a>{% if not forloop.last %}<span class="search-result-breadcrumbs__separator">/</span>{% endif %}
+                                        {% endfor %}
+                                    </p -->
+                                {% endif %}
+                                <h2 class="govuk-heading-s govuk-!-margin-bottom-2">
+                                    <a class="govuk-link govuk-link--no-underline govuk-link--no-visited-state"
+                                       href="{{ result.url }}">{{ result.title }}</a>
+                                </h2>
+                                {% if result.source_name or result.tags %}
+                                    <p class="govuk-body-s govuk-!-margin-bottom-2 tags-container">
+                                        {% if result.source_name %}<strong class="govuk-tag">{{ result.source_name }}</strong>{% endif %}
+                                        {% if result.tags %}
+                                            {% for tag in result.tags %}<strong class="govuk-tag govuk-tag--grey">{{ tag }}</strong>{% endfor %}
+                                        {% endif %}
+                                    </p>
+                                {% endif %}
+                                {% if result.search_description %}
+                                    <p class="govuk-body section-card__text govuk-!-margin-bottom-0">{{ result.search_description }}</p>
+                                {% endif %}
+                            </article>
+                        {% endfor %}
+                    </div>
+                    {% if results.has_previous or results.has_next %}
+                        <p class="govuk-body govuk-!-margin-top-4 govuk-!-margin-bottom-0">
+                            {% if results.has_previous %}
+                                <a class="govuk-link govuk-!-margin-right-4"
+                                   href="?query={{ query|urlencode }}&page={{ results.previous_page_number }}">Previous</a>
                             {% endif %}
-                        </li>
-                    {% endfor %}
-                </ol>
-                {% if results.has_previous or results.has_next %}
-                    <p class="govuk-body">
-                        {% if results.has_previous %}
-                            <a class="govuk-link govuk-!-margin-right-4"
-                               href="?query={{ query|urlencode }}&page={{ results.previous_page_number }}">Previous</a>
-                        {% endif %}
-                        Page {{ results.number }} of {{ results.paginator.num_pages }}
-                        {% if results.has_next %}
-                            <a class="govuk-link govuk-!-margin-left-4"
-                               href="?query={{ query|urlencode }}&page={{ results.next_page_number }}">Next</a>
-                        {% endif %}
-                    </p>
+                            Page {{ results.number }} of {{ results.paginator.num_pages }}
+                            {% if results.has_next %}
+                                <a class="govuk-link govuk-!-margin-left-4"
+                                   href="?query={{ query|urlencode }}&page={{ results.next_page_number }}">Next</a>
+                            {% endif %}
+                        </p>
+                    {% endif %}
+                {% else %}
+                    <p class="govuk-body">No results found.</p>
                 {% endif %}
             {% else %}
-                <p class="govuk-body">No results found.</p>
+                <p class="govuk-body">Enter a search term to find pages.</p>
             {% endif %}
-        {% else %}
-            <p class="govuk-body">Enter a search term to find pages.</p>
-        {% endif %}
+        </div>
     </div>
 {% endblock %}
