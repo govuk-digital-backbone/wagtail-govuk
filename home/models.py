@@ -1,9 +1,13 @@
 from django.db import models
+from modelcluster.contrib.taggit import ClusterTaggableManager
+from modelcluster.fields import ParentalKey
+from taggit.models import TagBase, TaggedItemBase
 from wagtail import blocks
-from wagtail.admin.panels import FieldPanel
+from wagtail.admin.panels import FieldPanel, InlinePanel
 from wagtail.contrib.settings.models import BaseSiteSetting, register_setting
 from wagtail.fields import RichTextField, StreamField
 from wagtail.models import Page
+from wagtail.snippets.blocks import SnippetChooserBlock
 
 
 @register_setting(icon="warning")
@@ -69,6 +73,62 @@ class FooterSettings(BaseSiteSetting):
     ]
 
 
+class GovukTag(TagBase):
+    """Tag dictionary entry where slug is the key and name is the display value."""
+
+    def clean(self):
+        super().clean()
+        if self.slug:
+            self.slug = self.slug.strip().lower()
+
+    @property
+    def key(self) -> str:
+        return self.slug
+
+    @property
+    def value(self) -> str:
+        return self.name
+
+    class Meta:
+        verbose_name = "Tag"
+        verbose_name_plural = "Tags"
+        ordering = ["slug"]
+
+
+class ContentPageTag(TaggedItemBase):
+    content_object = ParentalKey(
+        "home.ContentPage",
+        related_name="tagged_items",
+        on_delete=models.CASCADE,
+    )
+    tag = models.ForeignKey(
+        "home.GovukTag",
+        related_name="content_page_tagged_items",
+        on_delete=models.CASCADE,
+    )
+
+    panels = [
+        FieldPanel("tag"),
+    ]
+
+
+class SectionPageTag(TaggedItemBase):
+    content_object = ParentalKey(
+        "home.SectionPage",
+        related_name="tagged_items",
+        on_delete=models.CASCADE,
+    )
+    tag = models.ForeignKey(
+        "home.GovukTag",
+        related_name="section_page_tagged_items",
+        on_delete=models.CASCADE,
+    )
+
+    panels = [
+        FieldPanel("tag"),
+    ]
+
+
 class ContentPage(Page):
     parent_page_types = ["home.ContentPage", "home.SectionPage"]
     subpage_types = ["home.ContentPage", "home.SectionPage"]
@@ -92,13 +152,18 @@ class ContentPage(Page):
         features=["bold", "italic", "link"],
     )
     body = RichTextField(blank=True)
+    tags = ClusterTaggableManager(through="home.ContentPageTag", blank=True)
 
     content_panels = Page.content_panels + [
-        FieldPanel("enable_hero_styling"),
-        FieldPanel("enable_combined_service_navigation_and_hero_styling"),
         FieldPanel("hero_title"),
         FieldPanel("hero_intro"),
         FieldPanel("body"),
+    ]
+
+    settings_panels = Page.settings_panels + [
+        FieldPanel("enable_hero_styling"),
+        FieldPanel("enable_combined_service_navigation_and_hero_styling"),
+        InlinePanel("tagged_items", heading="Tags", label="Tag"),
     ]
 
 
@@ -122,6 +187,7 @@ class SectionPage(Page):
         blank=True,
         features=["bold", "italic", "link"],
     )
+    tags = ClusterTaggableManager(through="home.SectionPageTag", blank=True)
     rows = StreamField(
         [
             (
@@ -176,6 +242,17 @@ class SectionPage(Page):
                                                 help_text="Optional URL for the button, for example /apply or https://example.gov.uk/apply.",
                                             ),
                                         ),
+                                        (
+                                            "tags",
+                                            blocks.ListBlock(
+                                                SnippetChooserBlock(
+                                                    "home.GovukTag",
+                                                    required=False,
+                                                ),
+                                                required=False,
+                                                help_text="Optional tags for this card.",
+                                            ),
+                                        ),
                                     ],
                                     icon="doc-full",
                                     label="Card",
@@ -200,10 +277,14 @@ class SectionPage(Page):
     subpage_types = ["home.ContentPage", "home.SectionPage"]
 
     content_panels = Page.content_panels + [
-        FieldPanel("enable_hero_styling"),
-        FieldPanel("enable_combined_service_navigation_and_hero_styling"),
         FieldPanel("hero_title"),
         FieldPanel("hero_intro"),
         FieldPanel("rows"),
         FieldPanel("free_text"),
+    ]
+
+    settings_panels = Page.settings_panels + [
+        FieldPanel("enable_hero_styling"),
+        FieldPanel("enable_combined_service_navigation_and_hero_styling"),
+        InlinePanel("tagged_items", heading="Tags", label="Tag"),
     ]

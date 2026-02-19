@@ -41,7 +41,10 @@ class SearchBackend:
         page_results = self._build_page_results(clean_query, filters)
         hero_results = self._build_hero_results(clean_query, filters)
         card_results = self._build_card_results(clean_query, filters)
-        combined_results = self._merge_results(page_results + hero_results + card_results)
+        tag_results = self._build_tag_results(clean_query, filters)
+        combined_results = self._merge_results(
+            page_results + hero_results + card_results + tag_results
+        )
 
         paginator = Paginator(combined_results, self._page_size(filters))
         return paginator.get_page(page)
@@ -58,19 +61,22 @@ class SearchBackend:
         request = filters.get("request")
         results: list[SearchResultItem] = []
         for page in queryset:
+            specific_page = page.specific
             title = page.title
             description = page.search_description or ""
-            score = float(
-                getattr(page, "rank", None)
-                or self._text_relevance(
-                    query,
-                    (
-                        (title, 3.0),
-                        (page.seo_title, 2.0),
-                        (description, 1.0),
-                    ),
-                )
+            tags_text = self._page_tags_text(specific_page)
+            page_rank = float(getattr(page, "rank", 0.0) or 0.0)
+            score = page_rank + self._text_relevance(
+                query,
+                (
+                    (title, 3.0),
+                    (page.seo_title, 2.0),
+                    (description, 1.0),
+                    (tags_text, 1.5),
+                ),
             )
+            if score <= 0:
+                continue
             results.append(
                 SearchResultItem(
                     title=title,
@@ -103,9 +109,12 @@ class SearchBackend:
                 text = self._clean_text(card.get("text"))
                 link_text = self._clean_text(card.get("link_text"))
                 link_url = (card.get("link_url") or "").strip()
+                tags_text = self._clean_text(" ".join(card.get("tags", [])))
 
                 searchable_text = " ".join(
-                    value for value in (title, text, link_text, link_url) if value
+                    value
+                    for value in (title, text, link_text, link_url, tags_text)
+                    if value
                 ).lower()
                 if query_lower not in searchable_text:
                     continue
@@ -117,6 +126,7 @@ class SearchBackend:
                         (text, 2.0),
                         (link_text, 1.5),
                         (link_url, 1.0),
+                        (tags_text, 2.0),
                     ),
                 )
                 results.append(
@@ -128,6 +138,40 @@ class SearchBackend:
                             or f"Card in {section_page.title}"
                         ),
                         url=link_url or section_url,
+                        score=score,
+                    )
+                )
+
+        return results
+
+    def _build_tag_results(
+        self, query: str, filters: dict[str, Any]
+    ) -> list[SearchResultItem]:
+        request = filters.get("request")
+        results: list[SearchResultItem] = []
+
+        for model in (ContentPage, SectionPage):
+            queryset = self._apply_filters(
+                model.objects.filter(
+                    Q(tags__slug__icontains=query) | Q(tags__name__icontains=query)
+                )
+                .prefetch_related("tags")
+                .distinct(),
+                filters,
+            )
+
+            for page in queryset:
+                tags_text = self._page_tags_text(page)
+                score = self._text_relevance(query, ((tags_text, 3.0),))
+                if score <= 0:
+                    continue
+
+                description = page.search_description or self._tag_result_description(page)
+                results.append(
+                    SearchResultItem(
+                        title=page.title,
+                        search_description=description,
+                        url=self._page_url(page, request),
                         score=score,
                     )
                 )
@@ -262,12 +306,19 @@ class SearchBackend:
             if block.block_type != "row":
                 continue
             for card in block.value.get("cards", []):
+                card_tags: list[str] = []
+                for tag in card.get("tags", []):
+                    tag_text = self._tag_text(tag)
+                    if tag_text:
+                        card_tags.append(tag_text)
+
                 cards.append(
                     {
                         "title": card.get("title"),
                         "text": card.get("text"),
                         "link_text": card.get("link_text"),
                         "link_url": card.get("link_url"),
+                        "tags": card_tags,
                     }
                 )
         return cards
@@ -282,6 +333,44 @@ class SearchBackend:
         if not value:
             return ""
         return " ".join(strip_tags(str(value)).split())
+
+    def _tag_text(self, tag: Any) -> str:
+        if not tag:
+            return ""
+
+        key = self._clean_text(getattr(tag, "slug", "") or getattr(tag, "key", ""))
+        value = self._clean_text(getattr(tag, "name", "") or getattr(tag, "value", ""))
+        if key or value:
+            return " ".join(part for part in (key, value) if part)
+
+        return self._clean_text(tag)
+
+    def _page_tags_text(self, page: Any) -> str:
+        tags_manager = getattr(page, "tags", None)
+        if not tags_manager:
+            return ""
+
+        tags: list[str] = []
+        for tag in tags_manager.all():
+            tag_text = self._tag_text(tag)
+            if tag_text:
+                tags.append(tag_text)
+        return " ".join(tags)
+
+    def _tag_result_description(self, page: Any) -> str:
+        tags_manager = getattr(page, "tags", None)
+        if not tags_manager:
+            return ""
+
+        values: list[str] = []
+        for tag in tags_manager.all():
+            value = self._clean_text(getattr(tag, "name", ""))
+            if value:
+                values.append(value)
+        if not values:
+            return ""
+
+        return f"Tagged: {', '.join(values)}"
 
     def _page_size(self, filters: dict[str, Any]) -> int:
         page_size = filters.get("page_size", DEFAULT_PAGE_SIZE)

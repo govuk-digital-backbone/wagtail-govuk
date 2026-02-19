@@ -4,8 +4,8 @@
 {% block title %}Search{% endblock %}
 {% block content %}
     <div class="govuk-width-container govuk-!-padding-top-6 govuk-!-padding-bottom-6">
-        <h1 class="govuk-heading-l">Search</h1>
-        <form action="{% url 'search' %}"
+        <h1 class="govuk-heading-l">Search result{{ results.paginator.count|pluralize }}</h1>
+        <!--form action="{% url 'search' %}"
               method="get"
               role="search"
               class="govuk-!-margin-bottom-6">
@@ -18,16 +18,12 @@
                         this site
                     {% endif %}
                 </label>
-                <input class="govuk-input govuk-!-width-two-thirds"
-                       id="search-query"
-                       name="query"
-                       type="search"
-                       value="{{ query }}" />
+                <input class="govuk-input govuk-!-width-two-thirds" id="search-query" name="query" type="search" value="query" />
             </div>
             <button class="govuk-button" data-module="govuk-button" type="submit">Search</button>
-        </form>
+        </form -->
         {% if query %}
-            <p class="govuk-body">{{ results.paginator.count }} result{{ results.paginator.count|pluralize }} for "{{ query }}"</p>
+            <p class="govuk-body">{{ results.paginator.count }} result{{ results.paginator.count|pluralize }}</p>
             {% if results %}
                 <ol class="govuk-list govuk-list--spaced">
                     {% for result in results %}
