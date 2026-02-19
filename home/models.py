@@ -175,6 +175,14 @@ class ContentDiscoverySource(Orderable):
                 seen.add(tag_id)
         return tag_ids
 
+    def get_default_tags(self) -> list["GovukTag"]:
+        tag_ids = self.get_default_tag_ids()
+        if not tag_ids:
+            return []
+
+        tags_by_id = {tag.pk: tag for tag in GovukTag.objects.filter(pk__in=tag_ids)}
+        return [tags_by_id[tag_id] for tag_id in tag_ids if tag_id in tags_by_id]
+
 
 class ExternalContentItemTag(TaggedItemBase):
     content_object = ParentalKey(
@@ -286,9 +294,9 @@ class ExternalContentItem(ClusterableModel):
             defaults={"source": source, **defaults},
         )
         if source:
-            source_tag_ids = source.get_default_tag_ids()
-            if source_tag_ids:
-                item.tags.add(*source_tag_ids)
+            source_tags = source.get_default_tags()
+            if source_tags:
+                item.tags.add(*source_tags)
         return item
 
 
