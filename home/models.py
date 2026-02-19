@@ -164,15 +164,44 @@ class ContentDiscoverySource(Orderable):
     def __str__(self) -> str:
         return self.name or self.url
 
+    @staticmethod
+    def _extract_tag_id(value) -> int | None:
+        if type(value) is int and value > 0:
+            return value
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped.isdigit():
+                parsed = int(stripped)
+                if parsed > 0:
+                    return parsed
+        tag_pk = getattr(value, "pk", None)
+        if type(tag_pk) is int and tag_pk > 0:
+            return tag_pk
+        if isinstance(value, dict):
+            for key in ("value", "id", "pk"):
+                extracted = ContentDiscoverySource._extract_tag_id(value.get(key))
+                if extracted:
+                    return extracted
+        return None
+
     def get_default_tag_ids(self) -> list[int]:
         tag_ids: list[int] = []
         seen: set[int] = set()
+
         for block in self.default_tags:
-            tag_value = block.value
-            tag_id = getattr(tag_value, "pk", None)
-            if isinstance(tag_id, int) and tag_id > 0 and tag_id not in seen:
+            tag_id = self._extract_tag_id(getattr(block, "value", None))
+            if tag_id and tag_id not in seen:
                 tag_ids.append(tag_id)
                 seen.add(tag_id)
+
+        # Some environments return chooser values as raw IDs in JSON;
+        # fall back to raw stream data if resolved block values yielded none.
+        if not tag_ids:
+            for raw_block in getattr(self.default_tags, "raw_data", []) or []:
+                tag_id = self._extract_tag_id(raw_block)
+                if tag_id and tag_id not in seen:
+                    tag_ids.append(tag_id)
+                    seen.add(tag_id)
         return tag_ids
 
     def get_default_tags(self) -> list["GovukTag"]:
@@ -296,7 +325,19 @@ class ExternalContentItem(ClusterableModel):
         if source:
             source_tags = source.get_default_tags()
             if source_tags:
-                item.tags.add(*source_tags)
+                existing_tag_ids = set(
+                    item.tagged_items.values_list("tag_id", flat=True)
+                )
+                rows_to_add = [
+                    ExternalContentItemTag(content_object=item, tag=source_tag)
+                    for source_tag in source_tags
+                    if source_tag.pk not in existing_tag_ids
+                ]
+                if rows_to_add:
+                    ExternalContentItemTag.objects.bulk_create(
+                        rows_to_add,
+                        ignore_conflicts=True,
+                    )
         return item
 
 

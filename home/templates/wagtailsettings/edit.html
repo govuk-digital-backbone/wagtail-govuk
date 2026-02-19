@@ -1,5 +1,5 @@
 {% extends "wagtailadmin/generic/edit.html" %}
-{% load i18n %}
+{% load i18n home_admin %}
 
 {% block before_form %}
     {% if site_switcher %}
@@ -18,19 +18,37 @@
     {% endif %}
 
     {% if view.app_name == "home" and view.model_name == "contentdiscoverysettings" %}
+        {% is_debug_enabled as debug_enabled %}
         <section class="w-mb-8">
             <h2 class="w-h3 w-mb-2">{% trans "Run content discovery" %}</h2>
             <p class="help w-mb-4">
                 {% trans "Fetch configured remote sources and update External content items." %}
             </p>
 
-            <form class="w-mb-4" method="post" action="{% url 'home_content_discovery_sync_site' object.site_id %}">
-                {% csrf_token %}
-                <input type="hidden" name="next" value="{{ request.get_full_path }}">
-                <button class="button button-secondary" type="submit">
-                    {% trans "Sync all sources" %}
-                </button>
-            </form>
+            <div class="w-flex w-gap-3 w-items-start w-mb-4">
+                <form class="w-mb-0"
+                      method="post"
+                      action="{% url 'home_content_discovery_sync_site' object.site_id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button class="button button-secondary" type="submit">
+                        {% trans "Sync all sources" %}
+                    </button>
+                </form>
+                {% if debug_enabled %}
+                    <form class="w-mb-0"
+                          method="post"
+                          action="{% url 'home_content_discovery_clear_site' object.site_id %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                        <button class="button serious"
+                                type="submit"
+                                onclick="return confirm('Clear all external content items for this site?');">
+                            {% trans "Clear external content" %}
+                        </button>
+                    </form>
+                {% endif %}
+            </div>
 
             {% for source in object.sources.all %}
                 <div class="w-mb-3 w-flex w-items-start w-justify-between w-gap-4">

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django import forms
 from django.http import HttpResponseNotAllowed
 from django.shortcuts import get_object_or_404, redirect
@@ -129,14 +130,16 @@ def sync_content_discovery_site_view(request, site_id: int):
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
 
-    settings = get_object_or_404(ContentDiscoverySettings, site_id=site_id)
-    if not _user_can_change_content_discovery_setting(request, site=settings.site):
+    discovery_settings = get_object_or_404(ContentDiscoverySettings, site_id=site_id)
+    if not _user_can_change_content_discovery_setting(
+        request, site=discovery_settings.site
+    ):
         return permission_denied(request)
 
     fallback_url = _content_discovery_edit_url(site_id)
     redirect_url = _safe_next_url(request, fallback_url=fallback_url)
 
-    sources = list(settings.sources.all())
+    sources = list(discovery_settings.sources.all())
     if not sources:
         messages.warning(request, "No content discovery sources are configured for this site.")
         return redirect(redirect_url)
@@ -172,6 +175,36 @@ def sync_content_discovery_site_view(request, site_id: int):
     return redirect(redirect_url)
 
 
+@require_admin_access
+def clear_content_discovery_site_view(request, site_id: int):
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+
+    if not settings.DEBUG:
+        return permission_denied(request)
+
+    discovery_settings = get_object_or_404(ContentDiscoverySettings, site_id=site_id)
+    if not _user_can_change_content_discovery_setting(
+        request, site=discovery_settings.site
+    ):
+        return permission_denied(request)
+
+    fallback_url = _content_discovery_edit_url(site_id)
+    redirect_url = _safe_next_url(request, fallback_url=fallback_url)
+
+    queryset = ExternalContentItem.objects.filter(
+        source__settings__site_id=site_id
+    ).distinct()
+    item_count = queryset.count()
+    queryset.delete()
+
+    messages.warning(
+        request,
+        f"Cleared {item_count} external content item{'s' if item_count != 1 else ''} for this site.",
+    )
+    return redirect(redirect_url)
+
+
 @hooks.register("register_admin_urls")
 def register_content_discovery_admin_urls():
     return [
@@ -184,6 +217,11 @@ def register_content_discovery_admin_urls():
             "content-discovery/sync/site/<int:site_id>/",
             sync_content_discovery_site_view,
             name="home_content_discovery_sync_site",
+        ),
+        path(
+            "content-discovery/clear/site/<int:site_id>/",
+            clear_content_discovery_site_view,
+            name="home_content_discovery_clear_site",
         ),
     ]
 
