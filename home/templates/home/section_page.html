@@ -13,7 +13,7 @@
                                 {% with card_count=row.value.cards|length %}
                                     {% for card in row.value.cards %}
                                         <div class="section-card">
-                                            <h3 class="govuk-heading-s">
+                                            <h3 class="govuk-heading-s govuk-!-margin-bottom-0">
                                                 {% if card.link_url %}
                                                     <a class="govuk-link govuk-link--no-underline govuk-link--no-visited-state"
                                                        href="{{ card.link_url }}">{{ card.title }}</a>
@@ -21,7 +21,11 @@
                                                     {{ card.title }}
                                                 {% endif %}
                                             </h3>
-                                            {% if card.text %}<div class="govuk-body section-card__text">{{ card.text|richtext }}</div>{% endif %}
+                                            {% if card.text %}
+                                                <div class="govuk-body section-card__text {% if not card.link_text %}govuk-!-margin-bottom-0{% endif %}">
+                                                    {{ card.text|richtext }}
+                                                </div>
+                                            {% endif %}
                                             {% if card.link_text and card.link_url %}
                                                 <a href="{{ card.link_url }}"
                                                    role="button"

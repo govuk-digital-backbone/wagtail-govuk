@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load wagtailcore_tags %}
+{% load wagtailcore_tags home_filters %}
 {% block title %}{{ self.seo_title|default:self.title }}{% endblock %}
 {% block content %}
     <div class="section-cards-container">
@@ -85,7 +85,7 @@
                         <div class="section-cards">
                             {% for item in listing_items %}
                                 <article class="section-card">
-                                    <h2 class="govuk-heading-s govuk-!-margin-bottom-1">
+                                    <h2 class="govuk-heading-s govuk-!-margin-bottom-0">
                                         <a class="govuk-link govuk-link--no-underline govuk-link--no-visited-state"
                                            href="{{ item.url }}">{{ item.title|default:item.url }}</a>
                                     </h2>
@@ -94,17 +94,17 @@
                                             <strong class="govuk-tag">{{ item.source.name }}</strong>
                                         </p>
                                     {% endif %}
-                                    {% if item.summary %}
+                                    {% if item.summary and item.summary != "None" %}
                                         <p class="govuk-body section-card__text">{{ item.summary|striptags|truncatechars:280 }}</p>
                                     {% endif %}
                                     {% if item.metadata and item.metadata.language %}
                                         <p class="govuk-body-s govuk-!-margin-bottom-0">Language: {{ item.metadata.language|default:"Unknown" }}</p>
                                     {% endif %}
                                     {% if item.metadata and item.metadata.watchers %}
-                                        <p class="govuk-body-s govuk-!-margin-bottom-0">Watchers: {{ item.metadata.watchers|default:0 }}</p>
+                                        <p class="govuk-body-s govuk-!-margin-bottom-0">Watchers: {{ item.metadata.watchers|default:0|comma_number }}</p>
                                     {% endif %}
                                     {% if item.metadata and item.metadata.open_issues %}
-                                        <p class="govuk-body-s govuk-!-margin-bottom-0">Open issues: {{ item.metadata.open_issues|default:0 }}</p>
+                                        <p class="govuk-body-s govuk-!-margin-bottom-0">Open issues: {{ item.metadata.open_issues|default:0|comma_number }}</p>
                                     {% endif %}
                                     <p class="govuk-body-s govuk-!-margin-bottom-0">
                                         Last updated:

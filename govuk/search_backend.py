@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any
 
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
@@ -28,6 +29,7 @@ class SearchResultItem:
     breadcrumbs: list[dict[str, str]] = field(default_factory=list)
     tags: list[str] = field(default_factory=list)
     source_name: str = ""
+    last_updated: datetime | None = None
 
 
 class SearchBackend:
@@ -103,6 +105,7 @@ class SearchBackend:
                         include_page=False,
                     ),
                     tags=tag_labels,
+                    last_updated=self._page_last_updated(page),
                 )
             )
         return results
@@ -179,6 +182,7 @@ class SearchBackend:
                             include_page=True,
                         ),
                         tags=result_tags,
+                        last_updated=self._page_last_updated(section_page),
                     )
                 )
 
@@ -224,6 +228,7 @@ class SearchBackend:
                             include_page=False,
                         ),
                         tags=tag_labels,
+                        last_updated=self._page_last_updated(page),
                     )
                 )
 
@@ -270,6 +275,7 @@ class SearchBackend:
                             include_page=False,
                         ),
                         tags=tag_labels,
+                        last_updated=self._page_last_updated(page),
                     )
                 )
 
@@ -317,6 +323,7 @@ class SearchBackend:
                     score=score,
                     tags=tag_labels,
                     source_name=source_name,
+                    last_updated=self._external_content_last_updated(item),
                 )
             )
 
@@ -523,6 +530,29 @@ class SearchBackend:
         if url:
             return url
         return page.url or "#"
+
+    def _coalesce_datetime(self, *values: Any) -> datetime | None:
+        for value in values:
+            if isinstance(value, datetime):
+                return value
+        return None
+
+    def _page_last_updated(self, page: Page) -> datetime | None:
+        return self._coalesce_datetime(
+            getattr(page, "latest_revision_created_at", None),
+            getattr(page, "last_published_at", None),
+            getattr(page, "first_published_at", None),
+        )
+
+    def _external_content_last_updated(
+        self, item: ExternalContentItem
+    ) -> datetime | None:
+        return self._coalesce_datetime(
+            getattr(item, "updated_at", None),
+            getattr(item, "created_at", None),
+            getattr(item, "published_at", None),
+            getattr(item, "last_seen_at", None),
+        )
 
     def _clean_text(self, value: Any) -> str:
         if not value:

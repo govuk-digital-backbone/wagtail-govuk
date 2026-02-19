@@ -49,7 +49,10 @@
                                     </p>
                                 {% endif %}
                                 {% if result.search_description %}
-                                    <p class="govuk-body section-card__text govuk-!-margin-bottom-0">{{ result.search_description }}</p>
+                                    <p class="govuk-body section-card__text">{{ result.search_description }}</p>
+                                {% endif %}
+                                {% if result.last_updated %}
+                                    <p class="govuk-body-s govuk-!-margin-bottom-0">Last updated: {{ result.last_updated|date:"j F Y" }}</p>
                                 {% endif %}
                             </article>
                         {% endfor %}
