@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% load wagtailcore_tags wagtailsettings_tags %}
+{% wagtail_site as current_site %}
+{% block title %}Search{% endblock %}
+{% block content %}
+    <div class="govuk-width-container govuk-!-padding-top-6 govuk-!-padding-bottom-6">
+        <h1 class="govuk-heading-l">Search</h1>
+        <form action="{% url 'search' %}"
+              method="get"
+              role="search"
+              class="govuk-!-margin-bottom-6">
+            <div class="govuk-form-group">
+                <label class="govuk-label" for="search-query">
+                    Search
+                    {% if current_site.site_name %}
+                        {{ current_site.site_name }}
+                    {% else %}
+                        this site
+                    {% endif %}
+                </label>
+                <input class="govuk-input govuk-!-width-two-thirds"
+                       id="search-query"
+                       name="query"
+                       type="search"
+                       value="{{ query }}" />
+            </div>
+            <button class="govuk-button" data-module="govuk-button" type="submit">Search</button>
+        </form>
+        {% if query %}
+            <p class="govuk-body">{{ results.paginator.count }} result{{ results.paginator.count|pluralize }} for "{{ query }}"</p>
+            {% if results %}
+                <ol class="govuk-list govuk-list--spaced">
+                    {% for result in results %}
+                        <li>
+                            <h2 class="govuk-heading-m govuk-!-margin-bottom-1">
+                                <a class="govuk-link" href="{{ result.url }}">{{ result.title }}</a>
+                            </h2>
+                            {% if result.search_description %}
+                                <p class="govuk-body govuk-!-margin-bottom-0">{{ result.search_description }}</p>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ol>
+                {% if results.has_previous or results.has_next %}
+                    <p class="govuk-body">
+                        {% if results.has_previous %}
+                            <a class="govuk-link govuk-!-margin-right-4"
+                               href="?query={{ query|urlencode }}&page={{ results.previous_page_number }}">Previous</a>
+                        {% endif %}
+                        Page {{ results.number }} of {{ results.paginator.num_pages }}
+                        {% if results.has_next %}
+                            <a class="govuk-link govuk-!-margin-left-4"
+                               href="?query={{ query|urlencode }}&page={{ results.next_page_number }}">Next</a>
+                        {% endif %}
+                    </p>
+                {% endif %}
+            {% else %}
+                <p class="govuk-body">No results found.</p>
+            {% endif %}
+        {% else %}
+            <p class="govuk-body">Enter a search term to find pages.</p>
+        {% endif %}
+    </div>
+{% endblock %}

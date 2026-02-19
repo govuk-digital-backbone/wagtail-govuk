@@ -14,6 +14,7 @@ from govuk.views import (
     oidc_callback,
     oidc_login_redirect,
     profile_view,
+    search_view,
     wagtail_logout_redirect,
 )
 
@@ -40,7 +41,7 @@ urlpatterns = [
     path("accounts/profile/", profile_view, name="account_profile"),
     path("accounts/logout/", account_logout_redirect, name="account_logout"),
     path("accounts/", include("allauth.urls")),
-    # path("search/", search_views.search, name="search"),
+    path("search/", search_view, name="search"),
 ]
 
 

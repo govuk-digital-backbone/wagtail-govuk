@@ -5,6 +5,7 @@ from django.contrib.staticfiles.views import serve as staticfiles_serve
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.http import require_POST
+from wagtail.models import Site
 
 from govuk.oidc import (
     ADMIN_OIDC_NEXT_URL_KEY,
@@ -13,6 +14,7 @@ from govuk.oidc import (
     build_oidc_logout_url,
     oidc_callback as allauth_oidc_callback,
 )
+from govuk.search_backend import search_backend
 
 @login_required
 def profile_view(request):
@@ -25,6 +27,32 @@ def profile_view(request):
 
 def assets_alias_view(request, path):
     return staticfiles_serve(request, f"assets/{path}", insecure=True)
+
+
+@require_http_methods(["GET"])
+def search_view(request):
+    query = (request.GET.get("query") or "").strip()
+    page_number = request.GET.get("page", 1)
+    site = Site.find_for_request(request)
+
+    results = search_backend.search(
+        query=query,
+        filters={
+            "request": request,
+            "site": site,
+            "live": True,
+            "public": True,
+        },
+        page=page_number,
+    )
+    return render(
+        request,
+        "search/results.html",
+        {
+            "query": query,
+            "results": results,
+        },
+    )
 
 
 def oidc_login_redirect(request):
