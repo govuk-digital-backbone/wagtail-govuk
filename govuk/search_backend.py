@@ -14,7 +14,7 @@ from wagtail.models import Page, Site
 
 from home.models import ContentPage, ExternalContentItem, SectionPage
 
-DEFAULT_PAGE_SIZE = 10
+DEFAULT_PAGE_SIZE = 15
 SEARCH_CONFIG = "english"
 SEARCH_WEIGHTS = [0.1, 0.2, 0.4, 1.0]
 
@@ -208,7 +208,9 @@ class SearchBackend:
                 if score <= 0:
                     continue
 
-                description = page.search_description or self._tag_result_description(page)
+                description = page.search_description or self._tag_result_description(
+                    page
+                )
                 results.append(
                     SearchResultItem(
                         title=page.title,
@@ -368,9 +370,10 @@ class SearchBackend:
         ).order_by("-first_published_at", "-latest_revision_created_at", "title")
 
     def _search_hero_postgres(self, queryset: QuerySet, query: str) -> QuerySet:
-        hero_vector = (
-            SearchVector("hero_title", weight="A", config=SEARCH_CONFIG)
-            + SearchVector(Cast("hero_intro", TextField()), weight="B", config=SEARCH_CONFIG)
+        hero_vector = SearchVector(
+            "hero_title", weight="A", config=SEARCH_CONFIG
+        ) + SearchVector(
+            Cast("hero_intro", TextField()), weight="B", config=SEARCH_CONFIG
         )
         search_query = SearchQuery(query, search_type="websearch", config=SEARCH_CONFIG)
         return (
@@ -381,7 +384,9 @@ class SearchBackend:
             .order_by("-hero_rank", "-first_published_at", "title")
         )
 
-    def _search_external_content_sqlite(self, queryset: QuerySet, query: str) -> QuerySet:
+    def _search_external_content_sqlite(
+        self, queryset: QuerySet, query: str
+    ) -> QuerySet:
         return (
             queryset.filter(
                 Q(title__icontains=query)
@@ -392,10 +397,14 @@ class SearchBackend:
                 | Q(tags__name__icontains=query)
             )
             .distinct()
-            .order_by("-updated_at", "-created_at", "-published_at", "-last_seen_at", "title")
+            .order_by(
+                "-updated_at", "-created_at", "-published_at", "-last_seen_at", "title"
+            )
         )
 
-    def _search_external_content_postgres(self, queryset: QuerySet, query: str) -> QuerySet:
+    def _search_external_content_postgres(
+        self, queryset: QuerySet, query: str
+    ) -> QuerySet:
         search_vector = (
             SearchVector("title", weight="A", config=SEARCH_CONFIG)
             + SearchVector("summary", weight="B", config=SEARCH_CONFIG)
@@ -413,7 +422,12 @@ class SearchBackend:
             )
             .filter(external_rank__gt=0)
             .order_by(
-                "-external_rank", "-updated_at", "-created_at", "-published_at", "-last_seen_at", "title"
+                "-external_rank",
+                "-updated_at",
+                "-created_at",
+                "-published_at",
+                "-last_seen_at",
+                "title",
             )
             .distinct()
         )
@@ -427,7 +441,9 @@ class SearchBackend:
         site_or_root = filters.get("site")
         if site_or_root:
             root_page = (
-                site_or_root.root_page if isinstance(site_or_root, Site) else site_or_root
+                site_or_root.root_page
+                if isinstance(site_or_root, Site)
+                else site_or_root
             )
             queryset = queryset.descendant_of(
                 root_page, inclusive=bool(filters.get("include_root", False))

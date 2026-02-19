@@ -97,6 +97,15 @@
                                     {% if item.summary %}
                                         <p class="govuk-body section-card__text">{{ item.summary|striptags|truncatechars:280 }}</p>
                                     {% endif %}
+                                    {% if item.metadata and item.metadata.language %}
+                                        <p class="govuk-body-s govuk-!-margin-bottom-0">Language: {{ item.metadata.language|default:"Unknown" }}</p>
+                                    {% endif %}
+                                    {% if item.metadata and item.metadata.watchers %}
+                                        <p class="govuk-body-s govuk-!-margin-bottom-0">Watchers: {{ item.metadata.watchers|default:0 }}</p>
+                                    {% endif %}
+                                    {% if item.metadata and item.metadata.open_issues %}
+                                        <p class="govuk-body-s govuk-!-margin-bottom-0">Open issues: {{ item.metadata.open_issues|default:0 }}</p>
+                                    {% endif %}
                                     <p class="govuk-body-s govuk-!-margin-bottom-0">
                                         Last updated:
                                         {% with updated=item.updated_at|default:item.created_at|default:item.published_at|default:item.last_seen_at %}

@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import json
 import ssl
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from html import unescape
@@ -17,6 +18,7 @@ from django.utils.dateparse import parse_datetime
 from home.models import ContentDiscoverySource, ExternalContentItem
 
 ATOM_NAMESPACE = "http://www.w3.org/2005/Atom"
+GITHUB_ORG_API_PREFIX = "https://api.github.com/orgs/"
 USER_AGENT = "wagtail-govuk-content-discovery/1.0"
 
 
@@ -36,6 +38,7 @@ class FeedEntry:
     author_names: list[str]
     published_raw: str
     updated_raw: str
+    metadata: dict[str, object] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -268,14 +271,109 @@ def parse_feed(xml_content: str | bytes) -> list[FeedEntry]:
     )
 
 
+def _is_github_org_api_url(url: str) -> bool:
+    return url.strip().lower().startswith(GITHUB_ORG_API_PREFIX)
+
+
+def _parse_json_document(json_content: str | bytes):
+    if isinstance(json_content, bytes):
+        try:
+            json_content = json_content.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise ContentDiscoveryError(
+                "Response body is not valid UTF-8 JSON."
+            ) from exc
+
+    try:
+        return json.loads(json_content)
+    except json.JSONDecodeError as exc:
+        raise ContentDiscoveryError("Response body is not valid JSON.") from exc
+
+
+def parse_github_org_repositories(json_content: str | bytes) -> list[FeedEntry]:
+    document = _parse_json_document(json_content)
+    if not isinstance(document, list):
+        raise ContentDiscoveryError(
+            "Unsupported GitHub API response: expected a JSON list of repositories."
+        )
+
+    entries: list[FeedEntry] = []
+    for repository in document:
+        if not isinstance(repository, dict):
+            continue
+
+        html_url = str(repository.get("html_url") or "").strip()
+        if not html_url:
+            continue
+
+        title = str(repository.get("name", html_url)).strip()
+        summary = str(repository.get("description", "")).strip()
+        created_raw = str(repository.get("created_at", "")).strip()
+        updated_raw = str(repository.get("updated_at", "")).strip()
+        pushed_raw = str(repository.get("pushed_at", "")).strip()
+        if not updated_raw:
+            updated_raw = pushed_raw or created_raw
+
+        owner = repository.get("owner")
+        owner_login = ""
+        if isinstance(owner, dict):
+            owner_login = str(owner.get("login", "")).strip()
+
+        raw_topics = repository.get("topics")
+        topics: list[str] = []
+        if isinstance(raw_topics, list):
+            topics = [str(topic).strip() for topic in raw_topics if str(topic).strip()]
+
+        github_metadata = {
+            "watchers": repository.get("watchers", repository.get("watchers_count")),
+            "open_issues": repository.get(
+                "open_issues", repository.get("open_issues_count")
+            ),
+            "language": repository.get("language"),
+            "topics": topics,
+        }
+
+        entry_id = str(
+            repository.get("node_id") or repository.get("id") or html_url
+        ).strip()
+        author_names = [owner_login] if owner_login else []
+
+        entries.append(
+            FeedEntry(
+                format="github_org_repositories",
+                url=html_url,
+                title=title,
+                summary=summary,
+                created_at=_parse_timestamp(created_raw or updated_raw),
+                updated_at=_parse_timestamp(updated_raw or created_raw),
+                entry_id=entry_id,
+                author_names=author_names,
+                published_raw=created_raw,
+                updated_raw=updated_raw,
+                metadata=github_metadata,
+            )
+        )
+
+    return entries
+
+
 def fetch_source_content(
-    url: str, *, timeout: float = 15.0, disable_tls_verification: bool = False
+    url: str,
+    *,
+    timeout: float = 15.0,
+    disable_tls_verification: bool = False,
+    accept_header: str | None = None,
 ) -> bytes:
+    if not accept_header:
+        accept_header = (
+            "application/atom+xml, application/xml;q=0.9, text/xml;q=0.8, */*;q=0.1"
+        )
+
     request = Request(
         url,
         headers={
             "User-Agent": USER_AGENT,
-            "Accept": "application/atom+xml, application/xml;q=0.9, text/xml;q=0.8, */*;q=0.1",
+            "Accept": accept_header,
         },
     )
 
@@ -299,12 +397,22 @@ def fetch_source_content(
 def sync_content_discovery_source(
     source: ContentDiscoverySource, *, timeout: float = 15.0
 ) -> SourceSyncResult:
+    is_github_org_source = _is_github_org_api_url(source.url)
+    accept_header = (
+        "application/vnd.github+json, application/json;q=0.9, */*;q=0.1"
+        if is_github_org_source
+        else None
+    )
     feed_body = fetch_source_content(
         source.url,
         timeout=timeout,
         disable_tls_verification=source.disable_tls_verification,
+        accept_header=accept_header,
     )
-    entries = parse_feed(feed_body)
+    if is_github_org_source:
+        entries = parse_github_org_repositories(feed_body)
+    else:
+        entries = parse_feed(feed_body)
 
     result = SourceSyncResult(
         source_id=source.pk or 0,
@@ -333,6 +441,7 @@ def sync_content_discovery_source(
             "published_raw": entry.published_raw,
             "updated_raw": entry.updated_raw,
         }
+        metadata.update(entry.metadata)
         metadata = {
             key: value
             for key, value in metadata.items()

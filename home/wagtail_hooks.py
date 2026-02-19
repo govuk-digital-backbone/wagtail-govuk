@@ -59,19 +59,19 @@ class ExternalContentItemViewSet(SnippetViewSet):
     list_display = [
         "title",
         "url",
-        "key",
         "source",
-        "created_at",
-        "updated_at",
         "hidden",
+        "updated_at",
         "last_seen_at",
     ]
     list_filter = ["hidden", "source"]
-    search_fields = ["title", "url", "key"]
+    search_fields = ["title", "url"]
 
 
 def _content_discovery_edit_url(site_id: int) -> str:
-    return reverse("wagtailsettings:edit", args=("home", "contentdiscoverysettings", site_id))
+    return reverse(
+        "wagtailsettings:edit", args=("home", "contentdiscoverysettings", site_id)
+    )
 
 
 def _safe_next_url(request, *, fallback_url: str) -> str:
@@ -103,7 +103,9 @@ def sync_content_discovery_source_view(request, source_id: int):
         ContentDiscoverySource.objects.select_related("settings__site"),
         pk=source_id,
     )
-    if not _user_can_change_content_discovery_setting(request, site=source.settings.site):
+    if not _user_can_change_content_discovery_setting(
+        request, site=source.settings.site
+    ):
         return permission_denied(request)
 
     fallback_url = _content_discovery_edit_url(source.settings.site_id)
@@ -141,7 +143,9 @@ def sync_content_discovery_site_view(request, site_id: int):
 
     sources = list(discovery_settings.sources.all())
     if not sources:
-        messages.warning(request, "No content discovery sources are configured for this site.")
+        messages.warning(
+            request, "No content discovery sources are configured for this site."
+        )
         return redirect(redirect_url)
 
     totals = {"entries": 0, "created": 0, "updated": 0, "skipped": 0}
