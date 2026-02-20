@@ -48,7 +48,7 @@
                                         {% endif %}
                                     </p>
                                 {% endif %}
-                                {% if result.search_description %}
+                                {% if result.search_description and result.search_description != "None" %}
                                     <p class="govuk-body section-card__text">{{ result.search_description }}</p>
                                 {% endif %}
                                 {% if result.last_updated %}

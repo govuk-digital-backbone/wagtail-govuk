@@ -105,6 +105,14 @@
   border: 3px solid rgb(243, 242, 241);
 }
 
+.section-card:hover {
+  border-color: rgb(29, 112, 184);
+}
+
+.section-card--clickable {
+  cursor: pointer;
+}
+
 .app-site-search {
     margin-top: 12px;
     margin-bottom: 12px;
