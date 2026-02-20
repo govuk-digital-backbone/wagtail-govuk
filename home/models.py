@@ -423,6 +423,11 @@ class ContentPage(Page):
         features=["bold", "italic", "link"],
     )
     body = RichTextField(blank=True)
+    enable_free_text_heading_navigation = models.BooleanField(
+        default=False,
+        verbose_name="Enable sidebar heading navigation",
+        help_text="Show free text in a two-thirds and one-third layout with an automatic clickable heading list.",
+    )
     tags = ClusterTaggableManager(through="home.ContentPageTag", blank=True)
 
     content_panels = Page.content_panels + [
@@ -434,6 +439,7 @@ class ContentPage(Page):
     settings_panels = Page.settings_panels + [
         FieldPanel("enable_hero_styling"),
         FieldPanel("enable_combined_service_navigation_and_hero_styling"),
+        FieldPanel("enable_free_text_heading_navigation"),
         InlinePanel("tagged_items", heading="Tags", label="Tag"),
     ]
 
@@ -459,6 +465,11 @@ class TagListingsPage(Page):
         features=["bold", "italic", "link"],
     )
     free_text = RichTextField(blank=True)
+    enable_free_text_heading_navigation = models.BooleanField(
+        default=False,
+        verbose_name="Enable sidebar heading navigation",
+        help_text="Show free text in a two-thirds and one-third layout with an automatic clickable heading list.",
+    )
     enable_tag_filter = models.BooleanField(
         default=False,
         verbose_name="Enable tag filter",
@@ -497,6 +508,7 @@ class TagListingsPage(Page):
         FieldPanel("enable_combined_service_navigation_and_hero_styling"),
         FieldPanel("enable_tag_filter"),
         FieldPanel("enable_source_filter"),
+        FieldPanel("enable_free_text_heading_navigation"),
     ]
 
     def get_listing_queryset(self):
@@ -695,6 +707,11 @@ class SectionPage(Page):
         help_text="Add one or more row sections. Each row can contain up to 15 cards.",
     )
     free_text = RichTextField(blank=True)
+    enable_free_text_heading_navigation = models.BooleanField(
+        default=False,
+        verbose_name="Enable sidebar heading navigation",
+        help_text="Show free text in a two-thirds and one-third layout with an automatic clickable heading list.",
+    )
 
     parent_page_types = [
         "home.ContentPage",
@@ -717,5 +734,6 @@ class SectionPage(Page):
     settings_panels = Page.settings_panels + [
         FieldPanel("enable_hero_styling"),
         FieldPanel("enable_combined_service_navigation_and_hero_styling"),
+        FieldPanel("enable_free_text_heading_navigation"),
         InlinePanel("tagged_items", heading="Tags", label="Tag"),
     ]

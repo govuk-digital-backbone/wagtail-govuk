@@ -3,6 +3,8 @@
 // on page load
 document.addEventListener("DOMContentLoaded", function () {
   sectionCardHyperlinks();
+  setHyperlinkClasses();
+  setAutoHeadingNavigation();
 });
 
 function sectionCardHyperlinks() {
@@ -16,4 +18,100 @@ function sectionCardHyperlinks() {
       });
     }
   });
+}
+
+function setHyperlinkClasses() {
+  const richTextContents = document.querySelectorAll(".rich-text-content");
+  richTextContents.forEach((richText) => {
+    const links = richText.querySelectorAll("a");
+    links.forEach((link) => {
+      link.classList.add("govuk-link");
+    });
+  });
+}
+
+function setAutoHeadingNavigation() {
+  const headingLayouts = document.querySelectorAll("[data-auto-heading-layout]");
+  headingLayouts.forEach((layout) => {
+    const headingSource = layout.querySelector("[data-auto-heading-source]");
+    const headingNav = layout.querySelector("[data-auto-heading-nav]");
+    const mainColumn = layout.querySelector("[data-auto-heading-main-column]");
+    const sideColumn = layout.querySelector("[data-auto-heading-side-column]");
+
+    if (!headingSource || !headingNav || !mainColumn || !sideColumn) {
+      return;
+    }
+
+    const headings = headingSource.querySelectorAll("h2, h3, h4");
+    const existingIds = new Set(
+      Array.from(document.querySelectorAll("[id]"), (element) => element.id)
+    );
+    const headingItems = [];
+
+    headings.forEach((heading, index) => {
+      const text = (heading.textContent || "").trim();
+      if (!text) {
+        return;
+      }
+
+      if (!heading.id) {
+        heading.id = getUniqueHeadingId(text, existingIds, index + 1);
+      } else {
+        existingIds.add(heading.id);
+      }
+
+      headingItems.push({
+        level: heading.tagName.toLowerCase(),
+        text,
+        id: heading.id,
+      });
+    });
+
+    if (!headingItems.length) {
+      sideColumn.hidden = true;
+      mainColumn.classList.remove("govuk-grid-column-two-thirds");
+      mainColumn.classList.add("govuk-grid-column-full");
+      return;
+    }
+
+    const list = document.createElement("ul");
+    list.className = "govuk-list free-text-heading-nav__list";
+
+    headingItems.forEach((item) => {
+      const listItem = document.createElement("li");
+      listItem.className = "free-text-heading-nav__item";
+      if (item.level !== "h2") {
+        listItem.classList.add("free-text-heading-nav__item--nested");
+      }
+
+      const link = document.createElement("a");
+      link.className = "govuk-link govuk-link--no-visited-state";
+      link.href = "#" + item.id;
+      link.textContent = item.text;
+
+      listItem.appendChild(link);
+      list.appendChild(listItem);
+    });
+
+    headingNav.appendChild(list);
+  });
+}
+
+function getUniqueHeadingId(text, existingIds, fallbackIndex) {
+  const baseId = text
+    .toLowerCase()
+    .replace(/['’"]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  const safeBaseId = baseId || "section-" + fallbackIndex;
+
+  let candidate = safeBaseId;
+  let counter = 2;
+  while (existingIds.has(candidate)) {
+    candidate = safeBaseId + "-" + counter;
+    counter += 1;
+  }
+
+  existingIds.add(candidate);
+  return candidate;
 }
