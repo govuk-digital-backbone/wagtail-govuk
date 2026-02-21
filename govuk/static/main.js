@@ -5,6 +5,7 @@ document.addEventListener("DOMContentLoaded", function () {
   sectionCardHyperlinks();
   setHyperlinkClasses();
   setAutoHeadingNavigation();
+  addStartButtonSVG();
 });
 
 function sectionCardHyperlinks() {
@@ -22,19 +23,47 @@ function sectionCardHyperlinks() {
 
 function setHyperlinkClasses() {
   const richTextContents = document.querySelectorAll(".rich-text-content");
-  richTextContents.forEach((richText) => {
-    const links = richText.querySelectorAll("a");
-    links.forEach((link) => {
-      if (link.classList.contains("govuk-button")) {
-        return;
-      }
-      link.classList.add("govuk-link");
+  const masthead = document.querySelectorAll(".masthead");
+  [richTextContents, masthead].forEach((content) => {
+    content.forEach((element) => {
+      const links = element.querySelectorAll("a");
+      links.forEach((link) => {
+        if (link.classList.contains("govuk-button")) {
+          return;
+        }
+        if (element.classList.contains("masthead")) {
+          if (element.classList.contains("masthead--combined")) {
+            link.classList.add("govuk-link--inverse");
+          }
+        }
+        link.classList.add("govuk-link");
+      });
     });
   });
 }
 
+function addStartButtonSVG() {
+  document.querySelectorAll(".govuk-button--start").forEach((button) => {
+    if (!button.querySelector("svg")) {
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("class", "govuk-button__start-icon");
+      svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+      svg.setAttribute("width", "17.5");
+      svg.setAttribute("height", "19");
+      svg.setAttribute("viewBox", "0 0 33 40");
+      svg.setAttribute("aria-hidden", "true");
+      svg.setAttribute("focusable", "false");
+      svg.innerHTML =
+        '<path fill="currentColor" d="M0 0h13l20 20-20 20H0l20-20z" />';
+      button.appendChild(svg);
+    }
+  });
+}
+
 function setAutoHeadingNavigation() {
-  const headingLayouts = document.querySelectorAll("[data-auto-heading-layout]");
+  const headingLayouts = document.querySelectorAll(
+    "[data-auto-heading-layout]",
+  );
   headingLayouts.forEach((layout) => {
     const headingSource = layout.querySelector("[data-auto-heading-source]");
     const headingNav = layout.querySelector("[data-auto-heading-nav]");
@@ -47,7 +76,7 @@ function setAutoHeadingNavigation() {
 
     const headings = headingSource.querySelectorAll("h2, h3, h4");
     const existingIds = new Set(
-      Array.from(document.querySelectorAll("[id]"), (element) => element.id)
+      Array.from(document.querySelectorAll("[id]"), (element) => element.id),
     );
     const headingItems = [];
 
