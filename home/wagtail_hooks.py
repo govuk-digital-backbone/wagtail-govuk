@@ -1,14 +1,22 @@
+from draftjs_exporter.dom import DOM
 from django.conf import settings
 from django import forms
 from django.http import HttpResponseNotAllowed
 from django.shortcuts import get_object_or_404, redirect
-from django.urls import path, reverse
+from django.urls import path, reverse, reverse_lazy
+from django.utils.html import escape
 from django.utils.http import url_has_allowed_host_and_scheme
 from wagtail import hooks
 from wagtail.admin import messages
 from wagtail.admin.auth import permission_denied, require_admin_access
+from wagtail.admin.rich_text.converters.html_to_contentstate import (
+    PageLinkElementHandler,
+)
+from wagtail.admin.rich_text.editors.draftail import features as draftail_features
+from wagtail.rich_text.pages import PageLinkHandler
 from wagtail.snippets.models import register_snippet
 from wagtail.snippets.views.snippets import SnippetViewSet
+from wagtail.whitelist import check_url
 
 from home.content_discovery import ContentDiscoveryError, sync_content_discovery_source
 from home.models import (
@@ -17,6 +25,191 @@ from home.models import (
     ExternalContentItem,
     GovukTag,
 )
+
+GOVUK_BUTTON_FEATURE = "govuk-button"
+GOVUK_START_BUTTON_FEATURE = "govuk-start-button"
+GOVUK_BUTTON_ENTITY_TYPE = "GOVUK_BUTTON_LINK"
+GOVUK_START_BUTTON_ENTITY_TYPE = "GOVUK_START_BUTTON_LINK"
+GOVUK_BUTTON_LINKTYPE = "govuk-button"
+GOVUK_START_BUTTON_LINKTYPE = "govuk-start-button"
+GOVUK_BUTTON_STYLE_ATTR = "data-govuk-button-style"
+GOVUK_BUTTON_STYLE_DEFAULT = "default"
+GOVUK_BUTTON_STYLE_START = "start"
+
+
+def _get_govuk_button_attributes(*, is_start: bool) -> dict[str, str]:
+    classes = "govuk-button govuk-button--start" if is_start else "govuk-button"
+    style = GOVUK_BUTTON_STYLE_START if is_start else GOVUK_BUTTON_STYLE_DEFAULT
+    return {
+        "class": classes,
+        "role": "button",
+        "draggable": "false",
+        "data-module": "govuk-button",
+        GOVUK_BUTTON_STYLE_ATTR: style,
+    }
+
+
+def _build_govuk_button_opening_tag(*, href: str | None, is_start: bool) -> str:
+    attrs = _get_govuk_button_attributes(is_start=is_start)
+    ordered_attrs: list[str] = []
+    if href:
+        ordered_attrs.append(f'href="{escape(href)}"')
+    ordered_attrs.extend(
+        [
+            f'class="{escape(attrs["class"])}"',
+            f'role="{escape(attrs["role"])}"',
+            f'draggable="{escape(attrs["draggable"])}"',
+            f'data-module="{escape(attrs["data-module"])}"',
+            f'{GOVUK_BUTTON_STYLE_ATTR}="{escape(attrs[GOVUK_BUTTON_STYLE_ATTR])}"',
+        ]
+    )
+    return "<a " + " ".join(ordered_attrs) + ">"
+
+
+def _govuk_button_entity(props: dict, *, is_start: bool):
+    id_ = props.get("id")
+    link_props = {}
+    link_props["linktype"] = (
+        GOVUK_START_BUTTON_LINKTYPE if is_start else GOVUK_BUTTON_LINKTYPE
+    )
+    if id_ is not None:
+        link_props["id"] = id_
+    else:
+        link_props["url"] = check_url(props.get("url") or "") or "#"
+    return DOM.create_element("a", link_props, props["children"])
+
+
+def govuk_button_entity(props: dict):
+    return _govuk_button_entity(props, is_start=False)
+
+
+def govuk_start_button_entity(props: dict):
+    return _govuk_button_entity(props, is_start=True)
+
+
+class GovukButtonLinkElementHandler(PageLinkElementHandler):
+    def get_attribute_data(self, attrs):
+        if "id" in attrs:
+            return super().get_attribute_data(attrs)
+        return {"url": attrs.get("url", "")}
+
+
+class GovukButtonLinkHandler(PageLinkHandler):
+    identifier = GOVUK_BUTTON_LINKTYPE
+    is_start = False
+
+    @classmethod
+    def expand_db_attributes_many(cls, attrs_list: list[dict]) -> list[str]:
+        return [
+            _build_govuk_button_opening_tag(
+                href=(
+                    page.localized.url
+                    if page
+                    else (check_url(attrs.get("url") or "") or "#")
+                ),
+                is_start=cls.is_start,
+            )
+            for attrs, page in zip(attrs_list, cls.get_many(attrs_list))
+        ]
+
+    @classmethod
+    def extract_references(cls, attrs):
+        if attrs.get("id"):
+            yield from super().extract_references(attrs)
+
+
+class GovukStartButtonLinkHandler(GovukButtonLinkHandler):
+    identifier = GOVUK_START_BUTTON_LINKTYPE
+    is_start = True
+
+
+@hooks.register("register_rich_text_features")
+def register_govuk_button_rich_text_features(features):
+    features.register_link_type(GovukButtonLinkHandler)
+    features.register_link_type(GovukStartButtonLinkHandler)
+
+    for feature_name in (GOVUK_BUTTON_FEATURE, GOVUK_START_BUTTON_FEATURE):
+        if feature_name not in features.default_features:
+            features.default_features.append(feature_name)
+
+    link_chooser_urls = {
+        "pageChooser": reverse_lazy("wagtailadmin_choose_page"),
+        "externalLinkChooser": reverse_lazy("wagtailadmin_choose_page_external_link"),
+        "emailLinkChooser": reverse_lazy("wagtailadmin_choose_page_email_link"),
+        "phoneLinkChooser": reverse_lazy("wagtailadmin_choose_page_phone_link"),
+        "anchorLinkChooser": reverse_lazy("wagtailadmin_choose_page_anchor_link"),
+    }
+    common_editor_plugin_args = {
+        "attributes": ["url", "id", "parentId"],
+        "allowlist": {
+            "href": "^(http:|https:|mailto:|tel:|#|undefined$)",
+        },
+        "chooserUrls": link_chooser_urls,
+    }
+
+    features.register_editor_plugin(
+        "draftail",
+        GOVUK_BUTTON_FEATURE,
+        draftail_features.EntityFeature(
+            {
+                "type": GOVUK_BUTTON_ENTITY_TYPE,
+                "label": "Btn",
+                "description": "Button link",
+                **common_editor_plugin_args,
+            },
+            js=[
+                "wagtailadmin/js/page-chooser-modal.js",
+                "home/js/draftail-govuk-button.js",
+            ],
+        ),
+    )
+    features.register_converter_rule(
+        "contentstate",
+        GOVUK_BUTTON_FEATURE,
+        {
+            "from_database_format": {
+                f'a[linktype="{GOVUK_BUTTON_LINKTYPE}"]': GovukButtonLinkElementHandler(
+                    GOVUK_BUTTON_ENTITY_TYPE
+                ),
+            },
+            "to_database_format": {
+                "entity_decorators": {GOVUK_BUTTON_ENTITY_TYPE: govuk_button_entity}
+            },
+        },
+    )
+
+    features.register_editor_plugin(
+        "draftail",
+        GOVUK_START_BUTTON_FEATURE,
+        draftail_features.EntityFeature(
+            {
+                "type": GOVUK_START_BUTTON_ENTITY_TYPE,
+                "label": "Btn",
+                "description": "Start button link",
+                **common_editor_plugin_args,
+            },
+            js=[
+                "wagtailadmin/js/page-chooser-modal.js",
+                "home/js/draftail-govuk-button.js",
+            ],
+        ),
+    )
+    features.register_converter_rule(
+        "contentstate",
+        GOVUK_START_BUTTON_FEATURE,
+        {
+            "from_database_format": {
+                f'a[linktype="{GOVUK_START_BUTTON_LINKTYPE}"]': GovukButtonLinkElementHandler(
+                    GOVUK_START_BUTTON_ENTITY_TYPE
+                ),
+            },
+            "to_database_format": {
+                "entity_decorators": {
+                    GOVUK_START_BUTTON_ENTITY_TYPE: govuk_start_button_entity
+                }
+            },
+        },
+    )
 
 
 class GovukTagForm(forms.ModelForm):

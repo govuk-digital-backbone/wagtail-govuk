@@ -184,8 +184,12 @@
                             {% if self.hero_title or self.title %}
                                 <h1 class="hero__title">{{ self.hero_title | default:self.title }}</h1>
                             {% endif %}
-                            {% if self.search_description %}<p class="hero__description">{{ self.search_description }}</p>{% endif %}
-                            {% if self.hero_intro %}<div class="hero__description">{{ self.hero_intro|richtext }}</div>{% endif %}
+                            {% if self.search_description %}
+                                <p class="hero__description rich-text-content">{{ self.search_description }}</p>
+                            {% endif %}
+                            {% if self.hero_intro %}
+                                <div class="hero__description rich-text-content">{{ self.hero_intro|richtext }}</div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>

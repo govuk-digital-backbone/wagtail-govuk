@@ -1,5 +1,6 @@
 import hashlib
 
+from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import models
 from django.db.models.functions import Coalesce
@@ -92,6 +93,92 @@ class ContentDiscoverySettings(ClusterableModel, BaseSiteSetting):
     class Meta:
         verbose_name = "Content discovery"
         verbose_name_plural = "Content discovery"
+
+
+@register_setting(icon="redirect")
+class AuthenticatedRedirectSettings(ClusterableModel, BaseSiteSetting):
+    panels = [
+        InlinePanel(
+            "redirect_rules",
+            heading="Authenticated user redirects",
+            label="Redirect",
+            help_text=(
+                "Add one or more temporary redirects. "
+                "When an authenticated user requests the source path, "
+                "they are redirected to the destination path."
+            ),
+        ),
+    ]
+
+    class Meta:
+        verbose_name = "Authenticated user redirects"
+        verbose_name_plural = "Authenticated user redirects"
+
+
+class AuthenticatedRedirectRule(Orderable):
+    settings = ParentalKey(
+        "home.AuthenticatedRedirectSettings",
+        on_delete=models.CASCADE,
+        related_name="redirect_rules",
+    )
+    source_path = models.CharField(
+        max_length=255,
+        help_text="Path to match, for example /.",
+    )
+    destination_path = models.CharField(
+        max_length=500,
+        help_text="Path to redirect to, for example /dashboard.",
+    )
+
+    panels = [
+        FieldPanel("source_path"),
+        FieldPanel("destination_path"),
+    ]
+
+    class Meta:
+        ordering = ["sort_order", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["settings", "source_path"],
+                name="home_auth_redirect_source_path_unique_per_site",
+            )
+        ]
+
+    def clean(self):
+        super().clean()
+        self.source_path = self._normalize_path(self.source_path)
+        self.destination_path = self._normalize_path(self.destination_path)
+
+        if not self.source_path.startswith("/"):
+            raise ValidationError({"source_path": "Source path must start with '/'."})
+        if "?" in self.source_path or "#" in self.source_path:
+            raise ValidationError(
+                {
+                    "source_path": (
+                        "Source path must not include a query string or fragment."
+                    )
+                }
+            )
+        if not self.destination_path.startswith("/"):
+            raise ValidationError(
+                {"destination_path": "Destination path must start with '/'."}
+            )
+
+        if self.source_path == self.destination_path:
+            raise ValidationError(
+                {
+                    "destination_path": (
+                        "Destination path must be different from source path."
+                    )
+                }
+            )
+
+    @staticmethod
+    def _normalize_path(path: str) -> str:
+        return (path or "").strip()
+
+    def __str__(self) -> str:
+        return f"{self.source_path} -> {self.destination_path}"
 
 
 class GovukTag(TagBase):

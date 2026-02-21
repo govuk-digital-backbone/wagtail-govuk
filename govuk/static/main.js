@@ -25,6 +25,9 @@ function setHyperlinkClasses() {
   richTextContents.forEach((richText) => {
     const links = richText.querySelectorAll("a");
     links.forEach((link) => {
+      if (link.classList.contains("govuk-button")) {
+        return;
+      }
       link.classList.add("govuk-link");
     });
   });

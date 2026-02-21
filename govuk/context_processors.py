@@ -15,9 +15,7 @@ def navigation_and_breadcrumbs(request):
         current_page = None
 
     service_navigation_items = []
-    menu_pages = (
-        site_root.get_children().live().public().in_menu().specific().order_by("path")
-    )
+    menu_pages = site_root.get_children().live().in_menu().specific().order_by("path")
     for menu_page in menu_pages:
         service_navigation_items.append(
             {
