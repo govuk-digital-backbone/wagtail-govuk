@@ -1,0 +1,74 @@
+{% extends "wagtailadmin/generic/edit.html" %}
+{% load i18n govuk_admin %}
+
+{% block before_form %}
+    {% if site_switcher %}
+        <form class="w-mb-8" method="get" id="settings-site-switch" novalidate>
+            <label for="{{ site_switcher.site.id_for_label }}">
+                {% trans "Site" %}:
+            </label>
+            {{ site_switcher.site }}
+        </form>
+    {% elif site_for_header %}
+        <div class="w-mb-8">
+            {% trans "Site" %}:
+            {{ site_for_header.hostname }}
+            {% if site_for_header.is_default_site %}[{% trans "default" %}]{% endif %}
+        </div>
+    {% endif %}
+
+    {% if view.model_name == "contentdiscoverysettings" %}
+        {% is_debug_enabled as debug_enabled %}
+        <section class="w-mb-8">
+            <h2 class="w-h3 w-mb-2">{% trans "Run content discovery" %}</h2>
+            <p class="help w-mb-4">
+                {% trans "Fetch configured remote sources and update External content items." %}
+            </p>
+
+            <div class="w-flex w-gap-3 w-items-start w-mb-4">
+                <form class="w-mb-0"
+                      method="post"
+                      action="{% url 'govuk_content_discovery_sync_site' object.site_id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button class="button button-secondary" type="submit">
+                        {% trans "Sync all sources" %}
+                    </button>
+                </form>
+                {% if debug_enabled %}
+                    <form class="w-mb-0"
+                          method="post"
+                          action="{% url 'govuk_content_discovery_clear_site' object.site_id %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                        <button class="button serious"
+                                type="submit"
+                                onclick="return confirm('Clear all external content items for this site?');">
+                            {% trans "Clear external content" %}
+                        </button>
+                    </form>
+                {% endif %}
+            </div>
+
+            {% for source in object.sources.all %}
+                <div class="w-mb-3 w-flex w-items-start w-justify-between w-gap-4">
+                    <div>
+                        <strong>{{ source.name|default:source.url }}</strong>
+                        {% if source.name %}
+                            <div class="help">{{ source.url }}</div>
+                        {% endif %}
+                    </div>
+                    <form method="post" action="{% url 'govuk_content_discovery_sync_source' source.id %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                        <button class="button button-small button-secondary" type="submit">
+                            {% trans "Sync source" %}
+                        </button>
+                    </form>
+                </div>
+            {% empty %}
+                <p class="help">{% trans "Add at least one source, then save this page before syncing." %}</p>
+            {% endfor %}
+        </section>
+    {% endif %}
+{% endblock %}

@@ -121,8 +121,6 @@ def sync_admin_users_from_env() -> dict[str, int]:
 
 INSTALLED_APPS = [
     "govuk.apps.GovukConfig",
-    "home.apps.HomeConfig",
-    # "home",
     # "search",
     "wagtail.contrib.forms",
     "wagtail.contrib.redirects",
@@ -180,9 +178,7 @@ OIDC_JWKS_URL = os.getenv(
 OIDC_END_SESSION_URL = os.getenv(
     "OIDC_END_SESSION_URL", "https://sso.service.security.gov.uk/sign-out"
 )
-OIDC_TOKEN_AUDIENCE = os.getenv(
-    "OIDC_TOKEN_AUDIENCE", OIDC_CLIENT_ID
-)
+OIDC_TOKEN_AUDIENCE = os.getenv("OIDC_TOKEN_AUDIENCE", OIDC_CLIENT_ID)
 SOCIALACCOUNT_OPENID_CONNECT_URL_PREFIX = "oidc"
 SOCIALACCOUNT_LOGIN_ON_GET = True
 SOCIALACCOUNT_PROVIDERS = {
@@ -216,6 +212,20 @@ SOCIALACCOUNT_PROVIDERS = {
             }
         ],
     }
+}
+
+
+def _bool_env(var_name: str, default: bool = False) -> bool:
+    _var = os.getenv(var_name)
+    if _var and len(_var) > 0 and _var.lower()[0] in ["t", "y", "1"]:
+        return True
+    return default
+
+
+FEATURE_FLAGS = {
+    "ORGANISATIONS": _bool_env("FEATURE_ORGANISATIONS"),
+    "PEOPLE_FINDER": _bool_env("FEATURE_PEOPLE_FINDER"),
+    "FEEDBACK": _bool_env("FEATURE_FEEDBACK"),
 }
 
 AUTHENTICATION_BACKENDS = [

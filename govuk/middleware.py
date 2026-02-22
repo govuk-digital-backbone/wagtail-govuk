@@ -5,7 +5,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from wagtail.models import Site
 
 from govuk.oidc import ADMIN_OIDC_NEXT_URL_KEY, build_oidc_login_url
-from home.models import AuthenticatedRedirectSettings
+from govuk.models import AuthenticatedRedirectSettings
 
 
 class AdminOIDCLoginMiddleware:

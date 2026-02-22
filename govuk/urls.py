@@ -11,6 +11,7 @@ from govuk.api import api_root_view, api_router, api_v2_root_view
 from govuk.views import (
     account_logout_redirect,
     assets_alias_view,
+    feedback_view,
     oidc_callback,
     oidc_login_redirect,
     profile_view,
@@ -43,6 +44,12 @@ urlpatterns = [
     path("accounts/", include("allauth.urls")),
     path("search/", search_view, name="search"),
 ]
+
+if settings.FEATURE_FLAGS.get("FEEDBACK"):
+    urlpatterns += [
+        path("feedback", feedback_view),
+        path("feedback/", feedback_view, name="feedback"),
+    ]
 
 
 if settings.DEBUG:

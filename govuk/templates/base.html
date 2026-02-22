@@ -1,4 +1,4 @@
-{% load wagtailcore_tags wagtailsettings_tags %}
+{% load wagtailcore_tags %}
 {% wagtail_site as current_site %}
 {% load static %}
 <!DOCTYPE html>
@@ -40,7 +40,6 @@
         <a href="#main-content"
            class="govuk-skip-link"
            data-module="govuk-skip-link">Skip to main content</a>
-        {% get_settings as wagtail_settings %}
         <header class="govuk-template__header">
             <div class="govuk-header">
                 <div class="govuk-header__container govuk-width-container">
@@ -153,8 +152,8 @@
                     </div>
                 </div>
             </section>
-            {% if not self.enable_combined_service_navigation_and_hero_styling and wagtail_settings.home.PhaseBannerSettings.enabled %}
-                {% include "includes/phase_banner.html" with phase_banner_settings=wagtail_settings.home.PhaseBannerSettings %}
+            {% if not self.enable_combined_service_navigation_and_hero_styling and phase_banner_settings and phase_banner_settings.enabled %}
+                {% include "includes/phase_banner.html" with phase_banner_settings=phase_banner_settings %}
             {% endif %}
             {% if breadcrumbs and not self.enable_combined_service_navigation_and_hero_styling %}
                 <div class="govuk-width-container">
@@ -194,8 +193,8 @@
                     </div>
                 </div>
             {% endif %}
-            {% if self.enable_combined_service_navigation_and_hero_styling and wagtail_settings.home.PhaseBannerSettings.enabled %}
-                {% include "includes/phase_banner.html" with phase_banner_settings=wagtail_settings.home.PhaseBannerSettings %}
+            {% if self.enable_combined_service_navigation_and_hero_styling and phase_banner_settings and phase_banner_settings.enabled %}
+                {% include "includes/phase_banner.html" with phase_banner_settings=phase_banner_settings %}
             {% endif %}
             {% if messages %}
                 <!--div class="govuk-width-container">
@@ -256,11 +255,13 @@
                                         <a class="govuk-footer__link" href="{% url 'account_profile' %}">Profile</a>
                                     </li>
                                 {% endif %}
-                                {% for footer_link in wagtail_settings.home.FooterSettings.footer_links %}
-                                    <li class="govuk-footer__inline-list-item">
-                                        <a class="govuk-footer__link" href="{{ footer_link.value.url }}">{{ footer_link.value.title }}</a>
-                                    </li>
-                                {% endfor %}
+                                {% if footer_settings %}
+                                    {% for footer_link in footer_settings.footer_links %}
+                                        <li class="govuk-footer__inline-list-item">
+                                            <a class="govuk-footer__link" href="{{ footer_link.value.url }}">{{ footer_link.value.title }}</a>
+                                        </li>
+                                    {% endfor %}
+                                {% endif %}
                             </ul>
                             <svg aria-hidden="true"
                                  focusable="false"

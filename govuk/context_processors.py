@@ -1,11 +1,18 @@
 from django.http import Http404
 from wagtail.models import Page, Site
 
+from govuk.models import FooterSettings, PhaseBannerSettings
+
 
 def navigation_and_breadcrumbs(request):
     site = Site.find_for_request(request)
     if site is None:
-        return {"service_navigation_items": [], "breadcrumbs": []}
+        return {
+            "service_navigation_items": [],
+            "breadcrumbs": [],
+            "phase_banner_settings": None,
+            "footer_settings": None,
+        }
 
     site_root = site.root_page.specific
 
@@ -49,4 +56,6 @@ def navigation_and_breadcrumbs(request):
     return {
         "service_navigation_items": service_navigation_items,
         "breadcrumbs": breadcrumbs,
+        "phase_banner_settings": PhaseBannerSettings.for_site(site),
+        "footer_settings": FooterSettings.for_site(site),
     }

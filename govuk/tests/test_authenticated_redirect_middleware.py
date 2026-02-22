@@ -7,7 +7,7 @@ from django.test import RequestFactory, TestCase
 from wagtail.models import Site
 
 from govuk.middleware import AuthenticatedUserRedirectMiddleware
-from home.models import AuthenticatedRedirectRule, AuthenticatedRedirectSettings
+from govuk.models import AuthenticatedRedirectRule, AuthenticatedRedirectSettings
 
 
 class AuthenticatedUserRedirectMiddlewareTests(TestCase):

@@ -13,7 +13,7 @@ from django.db.models.functions import Cast
 from django.utils.html import strip_tags
 from wagtail.models import Page, Site
 
-from home.models import ContentPage, ExternalContentItem, SectionPage
+from govuk.models import ContentPage, ExternalContentItem, SectionPage
 
 DEFAULT_PAGE_SIZE = 15
 SEARCH_CONFIG = "english"
