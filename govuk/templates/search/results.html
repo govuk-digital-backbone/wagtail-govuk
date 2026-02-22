@@ -24,7 +24,9 @@
             <button class="govuk-button" data-module="govuk-button" type="submit">Search</button>
             </form -->
             {% if query %}
-                <p class="govuk-body">{{ results.paginator.count }} result{{ results.paginator.count|pluralize }}</p>
+                <p class="govuk-body">
+                    {{ results.paginator.count|default:0|comma_number }} result{{ results.paginator.count|pluralize }}
+                </p>
                 {% if results %}
                     <div class="section-cards">
                         {% for result in results %}

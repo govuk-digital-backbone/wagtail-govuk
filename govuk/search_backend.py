@@ -11,6 +11,7 @@ from django.db import connections
 from django.db.models import Q, QuerySet, TextField
 from django.db.models.functions import Cast
 from django.utils.html import strip_tags
+from django.utils import timezone
 from wagtail.models import Page, Site
 
 from govuk.models import ContentPage, ExternalContentItem, SectionPage
@@ -18,6 +19,18 @@ from govuk.models import ContentPage, ExternalContentItem, SectionPage
 DEFAULT_PAGE_SIZE = 15
 SEARCH_CONFIG = "english"
 SEARCH_WEIGHTS = [0.1, 0.2, 0.4, 1.0]
+PAGE_TAG_TEXT_WEIGHT = 0.75
+CARD_TAG_TEXT_WEIGHT = 1.0
+TAG_RESULT_WEIGHT = 1.2
+EXTERNAL_SOURCE_TEXT_WEIGHT = 0.4
+EXTERNAL_TAG_TEXT_WEIGHT = 0.6
+EXTERNAL_RECENCY_BOOST_BUCKETS: tuple[tuple[int, float], ...] = (
+    (7, 8.0),
+    (30, 5.0),
+    (90, 3.0),
+    (180, 1.5),
+    (365, 0.75),
+)
 
 
 @dataclass(slots=True)
@@ -87,7 +100,7 @@ class SearchBackend:
                     (title, 3.0),
                     (page.seo_title, 2.0),
                     (description, 1.0),
-                    (tags_text, 1.5),
+                    (tags_text, PAGE_TAG_TEXT_WEIGHT),
                 ),
             )
             if score <= 0:
@@ -162,7 +175,7 @@ class SearchBackend:
                         (text, 2.0),
                         (link_text, 1.5),
                         (link_url, 1.0),
-                        (tags_text, 2.0),
+                        (tags_text, CARD_TAG_TEXT_WEIGHT),
                     ),
                 )
                 results.append(
@@ -208,7 +221,7 @@ class SearchBackend:
             for page in queryset:
                 tag_labels = self._page_tag_labels(page)
                 tags_text = self._clean_text(" ".join(tag_labels))
-                score = self._text_relevance(query, ((tags_text, 3.0),))
+                score = self._text_relevance(query, ((tags_text, TAG_RESULT_WEIGHT),))
                 if score <= 0:
                     continue
 
@@ -296,14 +309,15 @@ class SearchBackend:
             tags_text = self._clean_text(" ".join(tag_labels))
             source_name = self._clean_text(getattr(item.source, "name", ""))
             item_rank = float(getattr(item, "external_rank", 0.0) or 0.0)
-            score = item_rank + self._text_relevance(
+            recency_boost = self._external_recency_boost(item)
+            score = item_rank + recency_boost + self._text_relevance(
                 query,
                 (
                     (item.title, 3.0),
                     (item.summary, 2.0),
                     (item.url, 1.0),
-                    (source_name, 1.5),
-                    (tags_text, 2.5),
+                    (source_name, EXTERNAL_SOURCE_TEXT_WEIGHT),
+                    (tags_text, EXTERNAL_TAG_TEXT_WEIGHT),
                 ),
             )
             if score <= 0:
@@ -416,9 +430,9 @@ class SearchBackend:
             SearchVector("title", weight="A", config=SEARCH_CONFIG)
             + SearchVector("summary", weight="B", config=SEARCH_CONFIG)
             + SearchVector("url", weight="C", config=SEARCH_CONFIG)
-            + SearchVector("source__name", weight="B", config=SEARCH_CONFIG)
-            + SearchVector("tags__slug", weight="A", config=SEARCH_CONFIG)
-            + SearchVector("tags__name", weight="A", config=SEARCH_CONFIG)
+            + SearchVector("source__name", weight="D", config=SEARCH_CONFIG)
+            + SearchVector("tags__slug", weight="D", config=SEARCH_CONFIG)
+            + SearchVector("tags__name", weight="D", config=SEARCH_CONFIG)
         )
         search_query = SearchQuery(query, search_type="websearch", config=SEARCH_CONFIG)
         return (
@@ -553,6 +567,21 @@ class SearchBackend:
             getattr(item, "published_at", None),
             getattr(item, "last_seen_at", None),
         )
+
+    def _external_recency_boost(self, item: ExternalContentItem) -> float:
+        last_updated = self._external_content_last_updated(item)
+        if not isinstance(last_updated, datetime):
+            return 0.0
+
+        now = timezone.now()
+        if timezone.is_naive(last_updated):
+            now = now.replace(tzinfo=None)
+
+        age_days = max((now - last_updated).days, 0)
+        for max_age_days, boost in EXTERNAL_RECENCY_BOOST_BUCKETS:
+            if age_days <= max_age_days:
+                return boost
+        return 0.0
 
     def _clean_text(self, value: Any) -> str:
         if not value:
