@@ -1,3 +1,5 @@
+import io
+
 from draftjs_exporter.dom import DOM
 from django.conf import settings
 from django import forms
@@ -21,6 +23,10 @@ from wagtail.snippets.views.snippets import SnippetViewSet
 from wagtail.whitelist import check_url
 
 from govuk.content_discovery import ContentDiscoveryError, sync_content_discovery_source
+from govuk.content_discovery_import import (
+    ContentDiscoverySourceImportError,
+    import_content_discovery_sources_from_csv,
+)
 from govuk.models import (
     ContentDiscoverySettings,
     ContentDiscoverySource,
@@ -449,6 +455,59 @@ def clear_content_discovery_site_view(request, site_id: int):
     return redirect(redirect_url)
 
 
+@require_admin_access
+def import_content_discovery_site_view(request, site_id: int):
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+
+    discovery_settings = get_object_or_404(ContentDiscoverySettings, site_id=site_id)
+    if not _user_can_change_content_discovery_setting(
+        request, site=discovery_settings.site
+    ):
+        return permission_denied(request)
+
+    fallback_url = _content_discovery_edit_url(site_id)
+    redirect_url = _safe_next_url(request, fallback_url=fallback_url)
+
+    csv_file = request.FILES.get("csv_file")
+    if csv_file is None:
+        messages.error(request, "Choose a CSV file to import.")
+        return redirect(redirect_url)
+
+    delimiter = (request.POST.get("delimiter") or ",").strip()
+    if len(delimiter) != 1:
+        messages.error(request, "Delimiter must be a single character.")
+        return redirect(redirect_url)
+
+    try:
+        csv_content = csv_file.read().decode("utf-8-sig")
+    except UnicodeDecodeError:
+        messages.error(request, "CSV file must be UTF-8 encoded.")
+        return redirect(redirect_url)
+
+    try:
+        result = import_content_discovery_sources_from_csv(
+            io.StringIO(csv_content),
+            default_site_id=site_id,
+            allowed_site_ids={site_id},
+            delimiter=delimiter,
+        )
+    except ContentDiscoverySourceImportError as exc:
+        messages.error(request, f"Import failed: {exc}")
+        return redirect(redirect_url)
+
+    messages.success(
+        request,
+        (
+            "Imported content discovery sources. "
+            f"Processed {result.processed}, created {result.created}, "
+            f"updated {result.updated}, unchanged {result.unchanged}, "
+            f"skipped empty {result.skipped_empty}."
+        ),
+    )
+    return redirect(redirect_url)
+
+
 @hooks.register("register_admin_urls")
 def register_content_discovery_admin_urls():
     return [
@@ -466,6 +525,11 @@ def register_content_discovery_admin_urls():
             "content-discovery/clear/site/<int:site_id>/",
             clear_content_discovery_site_view,
             name="govuk_content_discovery_clear_site",
+        ),
+        path(
+            "content-discovery/import/site/<int:site_id>/",
+            import_content_discovery_site_view,
+            name="govuk_content_discovery_import_site",
         ),
     ]
 

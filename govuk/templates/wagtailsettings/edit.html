@@ -50,6 +50,40 @@
                 {% endif %}
             </div>
 
+            <form class="w-mb-4"
+                  method="post"
+                  action="{% url 'govuk_content_discovery_import_site' object.site_id %}"
+                  enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <div class="w-flex w-gap-3 w-items-end w-flex-wrap">
+                    <div>
+                        <label class="w-block" for="content-discovery-csv-file">{% trans "Import sources CSV" %}</label>
+                        <input id="content-discovery-csv-file"
+                               type="file"
+                               name="csv_file"
+                               accept=".csv,text/csv"
+                               required>
+                    </div>
+                    <div>
+                        <label class="w-block" for="content-discovery-csv-delimiter">{% trans "Delimiter" %}</label>
+                        <input id="content-discovery-csv-delimiter"
+                               class="w-w-16"
+                               type="text"
+                               name="delimiter"
+                               value=","
+                               maxlength="1"
+                               aria-label="{% trans 'CSV delimiter' %}">
+                    </div>
+                    <button class="button button-secondary" type="submit">
+                        {% trans "Import CSV" %}
+                    </button>
+                </div>
+                <p class="help w-mt-2">
+                    {% trans "Columns: url (required), name, disable_tls_verification, default_tags. Optional site_id must match this site." %}
+                </p>
+            </form>
+
             {% for source in object.sources.all %}
                 <div class="w-mb-3 w-flex w-items-start w-justify-between w-gap-4">
                     <div>

@@ -48,3 +48,30 @@ When using `govuk.settings.dev`, the following variables are required:
 - `OIDC_JWKS_URL`: JWKS URL for API bearer token verification. Defaults to `https://sso.service.security.gov.uk/.well-known/jwks.json`.
 - `OIDC_ISSUER`: Expected JWT issuer for API bearer token verification. Defaults to `https://sso.service.security.gov.uk`.
 - `OIDC_TOKEN_AUDIENCE`: Expected JWT audience for API bearer token verification. Defaults to `OIDC_CLIENT_ID`.
+
+## Bulk Import Content Discovery Sources (CSV)
+
+You can bulk create or update content discovery sources from CSV either:
+
+1. In Wagtail admin: `Settings` -> `Content discovery` -> `Import sources CSV`
+2. Via management command:
+
+```bash
+python manage.py import_content_discovery_sources ./sources.csv --site-id 1
+```
+
+Rows are upserted by `(site_id, url)`.
+
+- `site_id`: Optional in CSV if you pass `--site-id`.
+- `url`: Required.
+- `name`: Optional.
+- `disable_tls_verification`: Optional boolean (`true/false`, `1/0`, `yes/no`, `on/off`).
+- `default_tags`: Optional tag keys (`GovukTag.slug`) separated by `|`.
+
+Example CSV:
+
+```csv
+site_id,url,name,disable_tls_verification,default_tags
+1,https://example.gov.uk/feed.xml,Example feed,false,policy|news
+1,https://api.github.com/orgs/alphagov/repos,GOV.UK repos,false,open-source
+```
